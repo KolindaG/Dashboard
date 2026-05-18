@@ -1,0 +1,2186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMIB — Loan Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+:root {
+  --bg0: #04101f;
+  --bg1: #071829;
+  --bg2: #0a1e33;
+  --bg3: #0d243d;
+  --border: #163354;
+  --border2: #1e4570;
+  --acc: #1e6dd5;
+  --acc2: #1452a8;
+  --acc-glow: rgba(30,109,213,0.12);
+  --acc-glow2: rgba(30,109,213,0.22);
+  --txt: #dce9f8;
+  --txt2: #6a94be;
+  --txt3: #3d6080;
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+  --bad2: rgba(239,68,68,0.12);
+  --ok2: rgba(16,185,129,0.12);
+  --warn2: rgba(245,158,11,0.12);
+  --side: 230px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg0);color:var(--txt);min-height:100vh;overflow-x:hidden;font-size:14px}
+
+/* ── SIDEBAR ── */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--side);background:var(--bg1);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:200}
+.sb-logo{padding:18px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px}
+.sb-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--acc),var(--acc2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;flex-shrink:0;box-shadow:0 4px 12px rgba(30,109,213,0.35)}
+.sb-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;line-height:1.1}
+.sb-sub{font-size:10px;color:var(--txt3);font-weight:400;letter-spacing:.04em}
+.sb-section{padding:14px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--txt3);text-transform:uppercase}
+.nav{display:flex;flex-direction:column;gap:2px;padding:0 8px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--txt2);font-size:13px;font-weight:500;transition:all .15s;border:1px solid transparent;position:relative}
+.nav-item:hover{background:var(--acc-glow);color:var(--txt)}
+.nav-item.active{background:var(--acc-glow2);color:var(--acc);border-color:rgba(30,109,213,.28)}
+.nav-item svg{width:17px;height:17px;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--acc);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;min-width:18px;text-align:center}
+.sb-foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);font-size:10px;color:var(--txt3);line-height:1.6}
+
+/* ── MAIN ── */
+.main{margin-left:var(--side);min-height:100vh;display:flex;flex-direction:column}
+.topbar{height:56px;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:14px;position:sticky;top:0;z-index:100}
+.tb-title{font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700}
+.tb-sub{font-size:11px;color:var(--txt3)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.data-pill{display:flex;align-items:center;gap:6px;padding:5px 11px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;font-size:11px;color:var(--txt2)}
+.dot{width:6px;height:6px;border-radius:50%}
+.dot.on{background:var(--ok);box-shadow:0 0 7px var(--ok)}
+.dot.off{background:var(--bad)}
+
+/* ── PAGES ── */
+.page{display:none;padding:20px 22px}
+.page.active{display:block}
+
+/* ── CARD ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:18px}
+.card-head{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:52px}
+.card-title{font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--txt)}
+.card-ctrls{margin-left:auto;display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.card-body{padding:0}
+
+/* ── BANK STRIP ── */
+.bank-strip{display:flex;gap:0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.strip-cell{padding:12px 20px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
+.strip-cell:last-child{border-right:none;margin-left:auto;background:var(--bad2)}
+.strip-lbl{font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.strip-val{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700}
+.strip-val.big{font-size:30px;color:var(--bad)}
+.strip-val.green{color:var(--ok)}
+.strip-val.red{color:var(--bad)}
+
+/* ── CONTROLS ── */
+.fg{display:flex;flex-direction:column;gap:3px}
+.fg label{font-size:10px;color:var(--txt3);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+select,input[type=number]{background:var(--bg0);border:1px solid var(--border);color:var(--txt);padding:5px 9px;border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;transition:border-color .15s;height:30px}
+select:focus,input:focus{border-color:var(--acc)}
+select option{background:#071829}
+input[type=number]{width:80px}
+.sep-x{width:1px;height:28px;background:var(--border);margin:0 4px;align-self:flex-end}
+
+/* ── BUTTONS ── */
+.btn{padding:6px 13px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;transition:all .15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;height:30px}
+.btn-primary{background:var(--acc);color:#fff}
+.btn-primary:hover{background:#1a5ec0}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--acc-glow);color:var(--txt);border-color:var(--border2)}
+.btn-danger{background:var(--bad2);color:var(--bad);border:1px solid rgba(239,68,68,.3)}
+.btn-danger:hover{background:rgba(239,68,68,.22)}
+.btn-warn{background:var(--warn2);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:var(--bg1);padding:9px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;color:var(--txt2);text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;cursor:pointer;user-select:none}
+thead th:hover{color:var(--txt)}
+thead th.num{text-align:right}
+thead th .si{margin-left:3px;opacity:.35}
+thead th.asc .si::after{content:'▲';opacity:1;color:var(--acc)}
+thead th.desc .si::after{content:'▼';opacity:1;color:var(--acc)}
+thead th:not(.asc):not(.desc) .si::after{content:'⇅'}
+tbody tr{border-bottom:1px solid rgba(22,51,84,.6);transition:background .1s}
+tbody tr:hover{background:rgba(30,109,213,.05)}
+tbody tr:last-child{border-bottom:none}
+td{padding:8px 12px;white-space:nowrap}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.total-row{background:var(--bg1) !important;border-top:2px solid var(--border2) !important;font-weight:600}
+.total-row td{color:var(--txt2)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.03em}
+.b-s1{background:var(--ok2);color:var(--ok)}
+.b-s2{background:var(--warn2);color:var(--warn)}
+.b-s3{background:var(--bad2);color:var(--bad)}
+.b-new{background:rgba(30,109,213,.15);color:var(--acc)}
+.b-out{background:rgba(106,148,190,.12);color:var(--txt2)}
+
+/* ── PCT COLORING ── */
+.pct-val{font-weight:600;font-variant-numeric:tabular-nums}
+.pct-lo{color:var(--ok)}
+.pct-md{color:var(--warn)}
+.pct-hi{color:var(--bad)}
+
+/* ── SECTION LABEL ── */
+.sec-label{padding:9px 18px 6px;font-size:10px;font-weight:700;letter-spacing:.09em;color:var(--txt3);text-transform:uppercase;background:var(--bg3);border-bottom:1px solid var(--border)}
+
+/* ── MULTI-SELECT DROPDOWN ── */
+.ms-wrap{position:relative;display:inline-block}
+.ms-btn{background:var(--bg0);border:1px solid var(--border);color:var(--txt);padding:5px 9px;border-radius:6px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer;transition:border-color .15s;height:30px;min-width:120px;display:flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap;max-width:180px}
+.ms-btn:focus,.ms-btn.open{border-color:var(--acc)}
+.ms-arrow{font-size:9px;opacity:.5;flex-shrink:0}
+.ms-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-drop{position:absolute;top:calc(100% + 4px);left:0;min-width:200px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;z-index:300;box-shadow:0 8px 24px rgba(0,0,0,.4);display:none;max-height:220px;overflow-y:auto}
+.ms-drop.open{display:block}
+.ms-search{padding:7px 10px;border-bottom:1px solid var(--border)}
+.ms-search input{width:100%;background:var(--bg0);border:1px solid var(--border);color:var(--txt);padding:4px 8px;border-radius:5px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none}
+.ms-search input:focus{border-color:var(--acc)}
+.ms-opts{padding:4px 0}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;transition:background .1s}
+.ms-opt:hover{background:var(--acc-glow)}
+.ms-opt input[type=checkbox]{accent-color:var(--acc);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.ms-opt label{cursor:pointer;flex:1}
+.ms-actions{padding:6px 10px;border-top:1px solid var(--border);display:flex;gap:6px}
+.ms-actions button{flex:1;padding:4px;background:transparent;border:1px solid var(--border);color:var(--txt2);border-radius:4px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.ms-actions button:hover{background:var(--acc-glow);color:var(--txt)}
+
+/* ── SAVE PULSE ── */
+@keyframes savePulse{0%,100%{box-shadow:0 0 0 0 rgba(30,109,213,.5)}50%{box-shadow:0 0 0 6px rgba(30,109,213,0)}}
+.btn-pulse{animation:savePulse 1.4s ease-in-out infinite}
+
+/* ── UPLOAD ZONE ── */
+.uzone{border:2px dashed var(--border2);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg0)}
+.uzone:hover,.uzone.drag{border-color:var(--acc);background:var(--acc-glow)}
+.uzone-icon{width:44px;height:44px;margin:0 auto 10px;background:var(--acc-glow);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--acc)}
+.uzone-title{font-weight:600;font-size:13px;margin-bottom:3px}
+.uzone-sub{font-size:11px;color:var(--txt3)}
+.file-chip{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg0);border:1px solid var(--border);border-radius:8px;margin-top:12px}
+.file-chip-name{flex:1;font-size:12px;font-weight:500}
+.file-chip-sub{font-size:10px;color:var(--txt3)}
+
+/* ── MONTH TAG ── */
+.mtag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(30,109,213,.1);border:1px solid rgba(30,109,213,.22);border-radius:20px;font-size:11px;color:var(--acc);font-weight:600}
+
+/* ── COL PILL ── */
+.col-pill{padding:2px 7px;background:var(--bg1);border:1px solid var(--border);border-radius:4px;font-size:10px;color:var(--txt2);font-family:monospace}
+
+/* ── CHART ── */
+.chart-wrap{padding:16px 20px}
+.chart-box{position:relative;height:300px}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:36px 20px;color:var(--txt3)}
+.empty-ico{font-size:32px;margin-bottom:8px;opacity:.4}
+.empty-title{font-size:13px;font-weight:500;color:var(--txt2);margin-bottom:3px}
+.empty-sub{font-size:11px}
+
+/* ── SETTINGS GRID ── */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:960px){.sg{grid-template-columns:1fr}}
+
+/* ── MOVEMENT EXPAND ── */
+.mv-row{cursor:pointer}
+.mv-row:hover td{background:rgba(30,109,213,.07)}
+.mv-toggle{transition:transform .2s;font-size:10px;color:var(--txt3)}
+.mv-toggle.open{transform:rotate(90deg)}
+.mv-detail td{padding:0 !important;background:var(--bg1) !important}
+.mv-inner{max-height:220px;overflow-y:auto}
+.mv-inner table thead th{position:relative;top:auto}
+
+/* ── TOAST ── */
+#tc{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:6px}
+.toast{padding:10px 14px;border-radius:8px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:7px;animation:tin .2s ease;max-width:300px;pointer-events:none}
+.t-ok{background:#071f14;border:1px solid rgba(16,185,129,.35);color:var(--ok)}
+.t-er{background:#1f0707;border:1px solid rgba(239,68,68,.35);color:var(--bad)}
+.t-in{background:#071629;border:1px solid rgba(30,109,213,.35);color:var(--acc)}
+@keyframes tin{from{transform:translateX(16px);opacity:0}to{transform:none;opacity:1}}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:22px;width:440px;max-width:92%}
+.modal h3{font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;margin-bottom:10px}
+.modal p{color:var(--txt2);font-size:13px;margin-bottom:18px;line-height:1.5}
+.modal-acts{display:flex;gap:8px;justify-content:flex-end}
+
+/* ── CHART CARDS ── */
+.chart-cards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.ccard{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 14px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;position:relative;overflow:hidden;user-select:none}
+.ccard::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--acc-glow),transparent);opacity:0;transition:opacity .2s}
+.ccard:hover{border-color:var(--acc);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.ccard:hover::before{opacity:1}
+.ccard:active{transform:translateY(0)}
+.ccard-ico{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--acc-glow);color:var(--acc);flex-shrink:0;border:1px solid rgba(30,109,213,.2)}
+.ccard-name{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.04em;line-height:1.25;color:var(--txt)}
+.ccard-sub{font-size:10px;color:var(--txt3);line-height:1.4}
+.ccard-btn-lbl{font-size:10px;color:var(--acc);font-weight:600;letter-spacing:.05em;margin-top:2px;display:flex;align-items:center;gap:3px}
+/* ── CHART POPUP ── */
+.cpop-ov{position:fixed;inset:0;background:rgba(2,8,18,.82);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.cpop-ov.open{display:flex}
+.cpop{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:min(96vw,1360px);height:min(92vh,880px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 72px rgba(0,0,0,.7)}
+.cpop-hd{padding:11px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;background:var(--bg1);flex-shrink:0;min-height:54px}
+.cpop-title{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--txt);align-self:center}
+.cpop-bd{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.cpop-close{margin-left:auto;background:transparent;border:1px solid var(--border);color:var(--txt2);padding:0 13px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;height:30px;display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.cpop-close:hover{border-color:var(--bad);color:var(--bad)}
+.pop-2col{display:grid;grid-template-columns:1fr 360px;gap:18px}
+.pop-chart-box{position:relative;height:360px}
+.pop-chart-box.tall{height:440px}
+/* ── PROGRESS BARS ── */
+.prog-row{display:grid;grid-template-columns:170px 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(22,51,84,.5)}
+.prog-row:last-child{border-bottom:none}
+.prog-br-name{font-size:12px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-main{display:flex;flex-direction:column;gap:4px}
+.prog-track{position:relative;height:20px;background:var(--bg0);border-radius:10px;border:1px solid var(--border);overflow:hidden}
+.prog-fill{height:100%;border-radius:10px;transition:width .5s ease;position:relative}
+.prog-marker{position:absolute;top:-2px;bottom:-2px;width:3px;background:#fff;border-radius:2px;z-index:2;box-shadow:0 0 5px rgba(255,255,255,.5);transition:left .5s ease}
+.prog-stats{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--txt2);flex-wrap:wrap}
+.prog-status{flex-shrink:0;min-width:100px;text-align:right}
+/* ── STAGE PIE WRAPPER ── */
+.stage-layout{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
+.pie-box{height:300px;position:relative}
+/* ── TARGET SUMMARY STRIP ── */
+.tgt-strip{display:flex;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px;flex-wrap:wrap}
+.tgt-cell{padding:10px 18px;flex:1;min-width:120px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px}
+.tgt-cell:last-child{border-right:none}
+.tgt-lbl{font-size:10px;color:var(--txt3);text-transform:uppercase;font-weight:600;letter-spacing:.06em}
+.tgt-val{font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700}
+/* ── SETTINGS GRID EXTENDED ── */
+.sg-full{grid-column:1/-1}
+</style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-icon">SM</div>
+    <div>
+      <div class="sb-name">SMIB</div>
+      <div class="sb-sub">Loan Analytics</div>
+    </div>
+  </div>
+  <div class="sb-section">Menu</div>
+  <div class="nav">
+    <div class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" id="nav-settings" onclick="showPage('settings',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+      Settings
+      <span class="nav-badge" id="nb">0</span>
+    </div>
+  </div>
+  <div class="sb-foot">
+    <div style="font-weight:600;color:var(--txt2)">SMIB Analytics v1.0</div>
+    <div>State Mortgage &amp; Investment Bank</div>
+  </div>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div>
+      <div class="tb-title" id="pg-title">Dashboard</div>
+      <div class="tb-sub" id="pg-sub">NPL Analytics Overview</div>
+    </div>
+    <div class="tb-right">
+      <div class="data-pill" id="pill-all-s3" style="display:none">
+        <div class="dot on"></div>
+        <span style="color:var(--txt3);font-size:10px;margin-right:2px">ALL PRODUCTS</span>
+        <span id="tb-s3-all" style="font-weight:700;color:var(--bad)">—</span>
+      </div>
+      <div class="data-pill" id="pill-flt-s3" style="display:none">
+        <div class="dot on" style="background:var(--warn);box-shadow:0 0 7px var(--warn)"></div>
+        <span style="color:var(--txt3);font-size:10px;margin-right:2px">FILTERED</span>
+        <span id="tb-s3-flt" style="font-weight:700;color:var(--warn)">—</span>
+      </div>
+      <div class="data-pill">
+        <div class="dot off" id="ddot"></div>
+        <span id="dstat">No data loaded</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DASHBOARD PAGE ═══ -->
+  <div id="page-dashboard" class="page active">
+
+  <!-- ── CHART CARDS ROW (Mini Chart Preview) ── -->
+  <div class="chart-cards-row">
+    <div class="ccard" onclick="openCPop('stage')">
+      <div style="width:100%;height:70px;position:relative"><canvas id="mini-stage"></canvas></div>
+      <div class="ccard-name">Stage Wise Analysis</div>
+      <div class="ccard-sub">Table & Pie BPO Distribution</div>
+      <div class="ccard-btn-lbl"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg> Open Report</div>
+    </div>
+    <div class="ccard" onclick="openCPop('nplmv')">
+      <div style="width:100%;height:70px;position:relative"><canvas id="mini-nplmv"></canvas></div>
+      <div class="ccard-name">NPL Movement</div>
+      <div class="ccard-sub">Monthly Bar + Trend Line</div>
+      <div class="ccard-btn-lbl"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg> Open Report</div>
+    </div>
+    <div class="ccard" onclick="openCPop('prodcomp')">
+      <div style="width:100%;height:70px;position:relative"><canvas id="mini-prodcomp"></canvas></div>
+      <div class="ccard-name">Product Composition</div>
+      <div class="ccard-sub">PL vs NPL Stacked Portfolio</div>
+      <div class="ccard-btn-lbl"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg> Open Report</div>
+    </div>
+    <div class="ccard" onclick="openCPop('brtgt')">
+      <div style="width:100%;height:70px;position:relative"><canvas id="mini-brtgt"></canvas></div>
+      <div class="ccard-name">Branch Target</div>
+      <div class="ccard-sub">NPL Ratio vs Monthly Target</div>
+      <div class="ccard-btn-lbl"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg> Open Report</div>
+    </div>
+  </div>
+
+    <!-- Branch NPL Summary -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Branch Wise NPL Summary</span>
+        <div class="card-ctrls">
+          <div class="fg"><label>Month</label><select id="b-mo" onchange="renderBranch()"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>Product</label><div id="b-pr-ms" class="ms-wrap"></div></div>
+          <button class="btn btn-ghost" onclick="exportExcel('b-tbody','Branch_NPL_Summary')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2m-2 4h8m-4-4h4"/></svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+      <div id="b-strip" class="bank-strip" style="display:none"></div>
+      <div class="card-body"><div class="tbl-wrap"><table>
+        <thead><tr>
+          <th onclick="sortCol(this,'b-tbody',0)">Branch<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'b-tbody',1)">Total Files<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'b-tbody',2)">Total BPO (M)<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'b-tbody',3)">S3 Files<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'b-tbody',4)">S3 BPO (M)<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'b-tbody',5)">S3 %<span class="si"></span></th>
+        </tr></thead>
+        <tbody id="b-tbody"></tbody>
+      </table></div></div>
+    </div>
+
+    <!-- Product NPL Summary -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Product Wise NPL Summary</span>
+        <div class="card-ctrls">
+          <div class="fg"><label>Month</label><select id="p-mo" onchange="renderProduct()"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>Branch</label><select id="p-br" onchange="renderProduct()"><option value="">All Branches</option></select></div>
+          <button class="btn btn-ghost" onclick="exportExcel('p-tbody','Product_NPL_Summary')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2m-2 4h8m-4-4h4"/></svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+      <div class="card-body"><div class="tbl-wrap"><table>
+        <thead><tr>
+          <th onclick="sortCol(this,'p-tbody',0)">Product Group<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'p-tbody',1)">Total Files<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'p-tbody',2)">Total BPO (M)<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'p-tbody',3)">S3 Files<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'p-tbody',4)">S3 BPO (M)<span class="si"></span></th>
+          <th class="num" onclick="sortCol(this,'p-tbody',5)">S3 %<span class="si"></span></th>
+        </tr></thead>
+        <tbody id="p-tbody"></tbody>
+      </table></div></div>
+    </div>
+
+    <!-- NPL Comparison -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">NPL Comparison</span>
+        <div class="card-ctrls">
+          <div class="fg"><label>Month 1</label><select id="cmp-m1" onchange="renderCmp()"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>Month 2</label><select id="cmp-m2" onchange="renderCmp()"><option value="">— Select —</option></select></div>
+          <div class="sep-x"></div>
+          <div class="fg"><label>Branch</label><select id="cmp-br" onchange="renderCmp()"><option value="">All Branches</option></select></div>
+          <div class="fg"><label>Product</label><div id="cmp-pr-ms" class="ms-wrap"></div></div>
+          <button class="btn btn-ghost" onclick="exportExcelCmp()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2m-2 4h8m-4-4h4"/></svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="sec-label">📍 Branch Wise</div>
+        <div class="tbl-wrap"><table><thead id="cmpb-h"></thead><tbody id="cmpb-b"></tbody></table></div>
+        <div class="sec-label" style="margin-top:1px">📦 Product Wise</div>
+        <div class="tbl-wrap"><table><thead id="cmpp-h"></thead><tbody id="cmpp-b"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Stage Movement -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Stage Movement</span>
+        <div class="card-ctrls">
+          <div class="fg"><label>From Month</label><select id="mv-m1" onchange="renderMovement()"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>To Month</label><select id="mv-m2" onchange="renderMovement()"><option value="">— Select —</option></select></div>
+          <div class="sep-x"></div>
+          <div class="fg"><label>Branch</label><select id="mv-br" onchange="renderMovement()"><option value="">All Branches</option></select></div>
+          <div class="fg"><label>Product</label><div id="mv-pr-ms" class="ms-wrap"></div></div>
+        </div>
+      </div>
+      <div class="card-body"><div class="tbl-wrap"><table>
+        <thead><tr>
+          <th style="width:26px"></th>
+          <th>Movement</th>
+          <th class="num">Files</th>
+          <th class="num">BPO (M)</th>
+          <th>Direction</th>
+        </tr></thead>
+        <tbody id="mv-tbody"></tbody>
+      </table></div></div>
+    </div>
+
+    <!-- Monthly Trend -->
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Monthly Trend</span>
+        <div class="card-ctrls">
+          <div class="fg"><label>Metric</label><select id="ch-me" onchange="renderChart()">
+            <option value="s3p">S3 %</option>
+            <option value="s3b">S3 BPO (M)</option>
+            <option value="tob">Total BPO (M)</option>
+          </select></div>
+          <div class="fg"><label>Branch</label><select id="ch-br" onchange="renderChart()"><option value="">All Branches (Bank)</option></select></div>
+          <div class="fg"><label>Product</label><div id="ch-pr-ms" class="ms-wrap"></div></div>
+        </div>
+      </div>
+      <div class="chart-wrap"><div class="chart-box"><canvas id="trend-canvas"></canvas></div></div>
+    </div>
+
+  </div><!-- /dashboard -->
+
+  <!-- ═══ SETTINGS PAGE ═══ -->
+  <div id="page-settings" class="page">
+    <div class="sg">
+
+      <!-- Data Status -->
+      <div class="card">
+        <div class="card-head"><span class="card-title">Dashboard Data</span></div>
+        <div style="padding:16px">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div id="ddot" class="dot off"></div>
+            <span id="dstat" style="font-size:13px;color:var(--txt2)">Connecting…</span>
+          </div>
+          <div style="font-size:12px;color:var(--txt3);line-height:1.7">
+            Data is managed centrally by the administrator.<br>
+            <a href="/admin.html" target="_blank" style="color:var(--acc);text-decoration:none;font-weight:600">→ Admin Panel</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Available Reports -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">Available Monthly Reports</span>
+          <span id="rc" style="margin-left:auto;font-size:11px;color:var(--txt3)">0 reports</span>
+        </div>
+        <div class="card-body"><div class="tbl-wrap"><table>
+          <thead><tr>
+            <th>Period</th>
+            <th class="num">Branches</th>
+            <th class="num">Products</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="rep-tbody"></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- Branch Targets (read-only) -->
+      <div class="card sg-full">
+        <div class="card-head">
+          <span class="card-title">Branch NPL Targets</span>
+          <span id="trc" style="margin-left:auto;font-size:11px;color:var(--txt3)">0 years</span>
+        </div>
+        <div class="card-body"><div class="tbl-wrap"><table>
+          <thead><tr>
+            <th style="width:28px"></th>
+            <th>Year</th>
+            <th class="num">Branches</th>
+            <th>Uploaded</th>
+          </tr></thead>
+          <tbody id="tgt-tbody"></tbody>
+        </table></div></div>
+      </div>
+
+    </div>
+  </div><!-- /settings -->
+
+</div><!-- /main -->
+
+<!-- ══════════════════ CHART POPUPS ══════════════════ -->
+
+<!-- POPUP 1: Stage Wise Analysis -->
+<div class="cpop-ov" id="pop-stage" onclick="cpopBgClose(event,'stage')">
+ <div class="cpop">
+  <div class="cpop-hd">
+    <span class="cpop-title">Stage Wise Analysis Report</span>
+    <div class="fg"><label>Month</label><select id="sw-mo" onchange="renderStageWise()"><option value="">— Select —</option></select></div>
+    <div class="fg"><label>Branch</label><select id="sw-br" onchange="renderStageWise()"><option value="">All Branches</option></select></div>
+    <div class="fg"><label>Product</label><div id="sw-pr-ms" class="ms-wrap"></div></div>
+    <button class="cpop-close" onclick="closeCPop('stage')">✕ Close</button>
+  </div>
+  <div class="cpop-bd">
+    <div class="stage-layout">
+      <div>
+        <div class="tbl-wrap"><table>
+          <thead><tr>
+            <th>Stage</th>
+            <th class="num">Total Files</th>
+            <th class="num">Total BPO (M)</th>
+            <th class="num">BPO % of Total</th>
+            <th class="num">S3 Files</th>
+            <th class="num">S3 BPO (M)</th>
+          </tr></thead>
+          <tbody id="sw-tbody"></tbody>
+        </table></div>
+        <div id="sw-summary" style="margin-top:14px"></div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">BPO Distribution by Stage</div>
+        <div class="pie-box"><canvas id="sw-pie-canvas"></canvas></div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- POPUP 2: NPL Movement -->
+<div class="cpop-ov" id="pop-nplmv" onclick="cpopBgClose(event,'nplmv')">
+ <div class="cpop">
+  <div class="cpop-hd">
+    <span class="cpop-title">NPL Movement Report</span>
+    <div class="fg"><label>Metric</label><select id="nm-me" onchange="renderNPLMovement()">
+      <option value="s3p">S3 %</option><option value="s3b">S3 BPO (M)</option><option value="tob">Total BPO (M)</option>
+    </select></div>
+    <div class="fg"><label>Branch</label><select id="nm-br" onchange="renderNPLMovement()"><option value="">All Branches</option></select></div>
+    <div class="fg"><label>Product</label><div id="nm-pr-ms" class="ms-wrap"></div></div>
+    <button class="cpop-close" onclick="closeCPop('nplmv')">✕ Close</button>
+  </div>
+  <div class="cpop-bd">
+    <div class="pop-chart-box tall"><canvas id="nm-canvas"></canvas></div>
+  </div>
+ </div>
+</div>
+
+<!-- POPUP 3: Product Composition -->
+<div class="cpop-ov" id="pop-prodcomp" onclick="cpopBgClose(event,'prodcomp')">
+ <div class="cpop">
+  <div class="cpop-hd">
+    <span class="cpop-title">Product Wise NPL Composition</span>
+    <div class="fg"><label>Month</label><select id="pc-mo" onchange="renderProductComp()"><option value="">— Select —</option></select></div>
+    <div class="fg"><label>Branch</label><select id="pc-br" onchange="renderProductComp()"><option value="">All Branches</option></select></div>
+    <button class="cpop-close" onclick="closeCPop('prodcomp')">✕ Close</button>
+  </div>
+  <div class="cpop-bd">
+    <div class="pop-chart-box tall"><canvas id="pc-canvas"></canvas></div>
+  </div>
+ </div>
+</div>
+
+<!-- POPUP 4: Branch Target -->
+<div class="cpop-ov" id="pop-brtgt" onclick="cpopBgClose(event,'brtgt')">
+ <div class="cpop">
+  <div class="cpop-hd">
+    <span class="cpop-title">Branch Wise NPL Target</span>
+    <div class="fg"><label>Month</label><select id="bt-mo" onchange="renderBranchTarget()">
+      <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+      <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+      <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+      <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+    </select></div>
+    <div class="fg"><label>Year</label><input type="number" id="bt-yr" value="2026" min="2000" max="2099" style="width:90px" oninput="renderBranchTarget()"></div>
+    <div class="sep-x"></div>
+    <div class="fg"><label>Sort By</label><select id="bt-sortby" onchange="renderBranchTarget()">
+      <option value="branch">Branch Name</option>
+      <option value="actual">Actual NPL %</option>
+      <option value="target">Target NPL %</option>
+      <option value="diff">Gap (vs Target)</option>
+    </select></div>
+    <div class="fg"><label>Order</label><select id="bt-sortdir" onchange="renderBranchTarget()">
+      <option value="asc">Ascending ↑</option>
+      <option value="desc">Descending ↓</option>
+    </select></div>
+    <button class="cpop-close" onclick="closeCPop('brtgt')">✕ Close</button>
+  </div>
+  <div class="cpop-bd">
+    <div id="bt-summary" class="tgt-strip" style="display:none"></div>
+    <div id="bt-container"></div>
+  </div>
+ </div>
+</div>
+
+<!-- Toast container -->
+<div id="tc"></div>
+
+<!-- Confirm Modal -->
+<div class="overlay" id="modal-ov">
+  <div class="modal">
+    <h3 id="modal-title">Confirm</h3>
+    <p id="modal-body">Are you sure?</p>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" id="modal-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════════
+const COLS = ['ArrangementNo','LoanNo','BranchName','ProductGroup','Product','Cif','CustomerName','LoanAmount','ContractStatus','Dpd','FINAL STAGE','Classification','TotalPrincipal'];
+const S3 = new Set(['STAGE3A','STAGE3B','STAGE3C','STAGE3D']);
+const MONTHS_LBL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Multi-select state: id → Set of selected values (empty = all)
+const msState = {};
+
+// ════════════════════════════════════════════════
+//  MULTI-SELECT COMPONENT
+// ════════════════════════════════════════════════
+function buildMultiSelect(containerId, onChange) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <button class="ms-btn" id="${containerId}-btn" onclick="toggleMs('${containerId}')">
+      <span class="ms-label" id="${containerId}-lbl">All Products</span>
+      <span class="ms-arrow">▼</span>
+    </button>
+    <div class="ms-drop" id="${containerId}-drop">
+      <div class="ms-search"><input type="text" placeholder="Search…" oninput="filterMs('${containerId}',this.value)"></div>
+      <div class="ms-opts" id="${containerId}-opts"></div>
+      <div class="ms-actions">
+        <button onclick="msSelectAll('${containerId}')">All</button>
+        <button onclick="msClearAll('${containerId}')">Clear</button>
+      </div>
+    </div>`;
+  if (!msState[containerId]) msState[containerId] = new Set(); // will be replaced by populateMs
+  wrap._onChange = onChange;
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!wrap.contains(e.target)) closeMsDrop(containerId);
+  }, true);
+}
+
+function toggleMs(id) {
+  const drop = document.getElementById(id+'-drop');
+  const btn  = document.getElementById(id+'-btn');
+  const isOpen = drop.classList.contains('open');
+  // Close all others
+  document.querySelectorAll('.ms-drop.open').forEach(d => { d.classList.remove('open'); d.previousElementSibling?.classList.remove('open'); });
+  if (!isOpen) { drop.classList.add('open'); btn.classList.add('open'); }
+}
+
+function closeMsDrop(id) {
+  document.getElementById(id+'-drop')?.classList.remove('open');
+  document.getElementById(id+'-btn')?.classList.remove('open');
+}
+
+// msAllOptions[id] = full sorted list of options for that dropdown
+const msAllOptions = {};
+
+function populateMs(id, options) {
+  const opts = document.getElementById(id+'-opts');
+  if (!opts) return;
+  msAllOptions[id] = options;
+
+  // On first populate (or when options list changes), initialise state to ALL selected
+  // Keep existing selections if options haven't changed
+  const existingSel = msState[id];
+  const allVals = new Set(options);
+  if (!existingSel || existingSel.size === 0) {
+    // Initialise: all selected
+    msState[id] = new Set(options);
+  } else {
+    // Remove any stale values no longer in options
+    for (const v of [...existingSel]) { if (!allVals.has(v)) existingSel.delete(v); }
+    // If nothing left, reset to all
+    if (existingSel.size === 0) msState[id] = new Set(options);
+  }
+
+  _renderMsOpts(id, options);
+  updateMsLabel(id, options.length);
+}
+
+function _renderMsOpts(id, options) {
+  const opts = document.getElementById(id+'-opts');
+  if (!opts) return;
+  const sel = msState[id];
+  opts.innerHTML = options.map(o => {
+    const cbId = `${id}-cb-${o.replace(/\W/g,'_')}`;
+    return `<div class="ms-opt" data-val="${o}">
+      <input type="checkbox" id="${cbId}" ${sel.has(o)?'checked':''} onchange="msToggle('${id}','${o}',this.checked)">
+      <label for="${cbId}">${o}</label>
+    </div>`;
+  }).join('');
+}
+
+function filterMs(id, q) {
+  document.querySelectorAll(`#${id}-opts .ms-opt`).forEach(el => {
+    el.style.display = el.dataset.val.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function msToggle(id, val, checked) {
+  const s = msState[id];
+  if (checked) s.add(val); else s.delete(val);
+  const total = (msAllOptions[id]||[]).length;
+  updateMsLabel(id, total);
+  const wrap = document.getElementById(id);
+  if (wrap?._onChange) wrap._onChange();
+}
+
+function msSelectAll(id) {
+  const options = msAllOptions[id] || [];
+  msState[id] = new Set(options);
+  _renderMsOpts(id, options);
+  updateMsLabel(id, options.length);
+  const wrap = document.getElementById(id);
+  if (wrap?._onChange) wrap._onChange();
+}
+
+function msClearAll(id) {
+  msState[id] = new Set();
+  const options = msAllOptions[id] || [];
+  _renderMsOpts(id, options);
+  updateMsLabel(id, options.length);
+  const wrap = document.getElementById(id);
+  if (wrap?._onChange) wrap._onChange();
+}
+
+function updateMsLabel(id, total) {
+  const s = msState[id];
+  const lbl = document.getElementById(id+'-lbl');
+  if (!lbl) return;
+  if (s.size === 0) lbl.textContent = 'None selected';
+  else if (s.size === total) lbl.textContent = 'All Products';
+  else if (s.size === 1) lbl.textContent = [...s][0];
+  else lbl.textContent = `${s.size} of ${total} selected`;
+}
+
+function getMsSelected(id) {
+  const s = msState[id];
+  const total = (msAllOptions[id]||[]).length;
+  // If all selected or none selected (treat none as all), return null = no filter
+  if (!s || s.size === 0 || s.size === total) return null;
+  return [...s];
+}
+
+function getDataMs(period, br, msId) {
+  const r = reports.find(x=>x.period===period);
+  if (!r) return [];
+  let d = r.data;
+  if (br) d = d.filter(x=>x.BranchName===br);
+  const sel = getMsSelected(msId);
+  if (sel) d = d.filter(x=>sel.includes(x.ProductGroup));
+  return d;
+}
+
+// ════════════════════════════════════════════════
+//  API
+// ════════════════════════════════════════════════
+const API_GET = '/.netlify/functions/get';
+
+// Safe JSON fetch — throws a clean error when the response is HTML (functions not deployed)
+async function apiFetch(url) {
+  const res = await fetch(url);
+  const ct  = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    throw new Error(
+      window.location.protocol === 'file:'
+        ? 'Open this file via your Netlify URL, not as a local file.'
+        : `Netlify Functions not reachable (HTTP ${res.status}). Check deployment and ADMIN_PASSWORD env var.`
+    );
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+// ════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════
+let reports = [];    // [{period, data[], uploadedAt?}]
+let targets  = [];   // [{year, data:{BranchName:[m0..m11]}, uploadedAt}]
+
+const isS3  = s => S3.has((s||'').toUpperCase().trim().replace(/\s/g,''));
+const stageGroup = s => {
+  const u = (s||'').toUpperCase().replace(/\s/g,'');
+  if (u.startsWith('STAGE1')) return 'STAGE1';
+  if (u.startsWith('STAGE2')) return 'STAGE2';
+  if (u.startsWith('STAGE3')) return 'STAGE3';
+  return 'UNKNOWN';
+};
+const periodLbl = p => { if (!p) return ''; const [y,m]=p.split('-'); return `${MONTHS_LBL[+m-1]} ${y}`; };
+const sortedPeriods = () => [...reports].sort((a,b)=>a.period.localeCompare(b.period)).map(r=>r.period);
+const fmtM = (n,d=2) => isNaN(n) ? '—' : (n/1e6).toFixed(d);
+const fmtPct = n => (!isFinite(n)||isNaN(n)) ? '—' : n.toFixed(2)+'%';
+const pctCls = p => p < 5 ? 'pct-lo' : p < 15 ? 'pct-md' : 'pct-hi';
+const getData = (period, br, pr) => {
+  const r = reports.find(x=>x.period===period);
+  if (!r) return [];
+  let d = r.data;
+  if (br) d = d.filter(x=>x.BranchName===br);
+  if (pr) d = d.filter(x=>x.ProductGroup===pr);
+  return d;
+};
+
+// ════════════════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════════════════
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  el.classList.add('active');
+  const map = {dashboard:['Dashboard','NPL Analytics Overview'],settings:['Settings','Data Status & Branch Targets']};
+  document.getElementById('pg-title').textContent = map[name][0];
+  document.getElementById('pg-sub').textContent   = map[name][1];
+}
+
+// ════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════
+function toast(msg, type='in') {
+  const t = document.createElement('div');
+  t.className = `toast t-${type}`;
+  t.innerHTML = `<span>${type==='ok'?'✓':type==='er'?'✕':'ℹ'}</span>${msg}`;
+  document.getElementById('tc').appendChild(t);
+  setTimeout(()=>t.remove(), 3400);
+}
+
+// ════════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════════
+let _modalCb = null;
+function showModal(title, body, cb, btnTxt='Delete', btnCls='btn-danger') {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent  = body;
+  const btn = document.getElementById('modal-ok');
+  btn.textContent = btnTxt;
+  btn.className   = 'btn ' + btnCls;
+  _modalCb = cb;
+  btn.onclick = ()=>{ closeModal(); _modalCb && _modalCb(); };
+  document.getElementById('modal-ov').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal-ov').classList.remove('open'); }
+
+// ════════════════════════════════════════════════
+//  INIT — fetch all data from Netlify on load
+// ════════════════════════════════════════════════
+async function initDashboard() {
+  document.getElementById('ddot').className = 'dot off';
+  document.getElementById('dstat').textContent = 'Connecting…';
+  try {
+    // 1. Fetch periods list and targets in parallel
+    const [pData, tData] = await Promise.all([
+      apiFetch(`${API_GET}?action=periods`),
+      apiFetch(`${API_GET}?action=targets`),
+    ]);
+    const { periods: availPeriods, meta } = pData;
+    const { targets: tgts } = tData;
+    targets = (tgts || []).sort((a,b)=>a.year.localeCompare(b.year));
+
+    if (!availPeriods || !availPeriods.length) {
+      document.getElementById('ddot').className = 'dot off';
+      document.getElementById('dstat').textContent = 'No data uploaded yet — contact administrator.';
+      document.getElementById('nb').textContent = '0';
+      document.getElementById('rc').textContent = '0 reports';
+      document.getElementById('trc').textContent = `${targets.length} year${targets.length!==1?'s':''}`;
+      renderStoredTargets();
+      return;
+    }
+
+    // 2. Fetch ALL period data (accumulated months)
+    const dataArr = await Promise.all(
+      availPeriods.map(p =>
+        apiFetch(`${API_GET}?action=data&period=${p}`)
+          .then(({ rows }) => ({ period: p, data: rows || [] }))
+      )
+    );
+    reports = dataArr.sort((a,b)=>a.period.localeCompare(b.period));
+
+    reload(); // re-use the render cycle
+  } catch(e) {
+    document.getElementById('dstat').textContent = 'Connection failed: ' + e.message;
+    document.getElementById('ddot').className = 'dot off';
+    console.error('Dashboard init failed:', e);
+  }
+}
+
+function reload() {
+  reports.sort((a,b)=>a.period.localeCompare(b.period));
+  targets.sort((a,b)=>a.year.localeCompare(b.year));
+
+  const last = reports[reports.length-1];
+  document.getElementById('nb').textContent = reports.length;
+  document.getElementById('rc').textContent = `${reports.length} report${reports.length!==1?'s':''}`;
+  document.getElementById('trc').textContent = `${targets.length} year${targets.length!==1?'s':''}`;
+  document.getElementById('ddot').className = reports.length ? 'dot on' : 'dot off';
+  document.getElementById('dstat').textContent = reports.length
+    ? `${reports.length} month${reports.length>1?'s':''} · Latest: ${periodLbl(last?.period)}`
+    : 'No data loaded';
+
+  refreshDropdowns();
+  renderStoredTable();
+  renderStoredTargets();
+  renderBranch();
+  renderProduct();
+  renderCmp();
+  renderMovement();
+  renderChart();
+  renderMiniCharts();
+}
+
+// ════════════════════════════════════════════════
+//  DROPDOWNS
+// ════════════════════════════════════════════════
+function refreshDropdowns() {
+  const periods = sortedPeriods();
+  const pOpts = periods.map(p=>`<option value="${p}">${periodLbl(p)}</option>`).join('');
+  const branches = [...new Set(reports.flatMap(r=>r.data.map(d=>d.BranchName)).filter(Boolean))].sort();
+  const products = [...new Set(reports.flatMap(r=>r.data.map(d=>d.ProductGroup)).filter(Boolean))].sort();
+  const bOpts = branches.map(b=>`<option value="${b}">${b}</option>`).join('');
+
+  const setOpts = (id, opts, blankLabel) => {
+    const s=document.getElementById(id); if(!s) return;
+    const cur=s.value;
+    s.innerHTML=(blankLabel!==undefined?`<option value="">${blankLabel}</option>`:'')+opts;
+    if(cur) s.value=cur;
+  };
+
+  setOpts('b-mo',  pOpts, '— Select —');
+  setOpts('p-mo',  pOpts, '— Select —');
+  setOpts('p-br',  bOpts, 'All Branches');
+  setOpts('cmp-m1',pOpts, '— Select —');
+  setOpts('cmp-m2',pOpts, '— Select —');
+  setOpts('cmp-br',bOpts, 'All Branches');
+  setOpts('mv-m1', pOpts, '— Select —');
+  setOpts('mv-m2', pOpts, '— Select —');
+  setOpts('mv-br', bOpts, 'All Branches');
+  setOpts('ch-br', bOpts, 'All Branches (Bank)');
+
+  // Populate multi-selects
+  populateMs('b-pr-ms',  products);
+  populateMs('cmp-pr-ms',products);
+  populateMs('mv-pr-ms', products);
+  populateMs('ch-pr-ms', products);
+
+  // Popup dropdowns
+  ['sw-mo','nm-br','pc-mo','pc-br'].forEach(id=>{
+    const s=document.getElementById(id); if(!s)return;
+    const cur=s.value;
+    if(id==='sw-mo'||id==='pc-mo'){s.innerHTML='<option value="">— Select —</option>'+pOpts;}
+    else {s.innerHTML='<option value="">All Branches</option>'+bOpts;}
+    if(cur) s.value=cur;
+  });
+  ['sw-br'].forEach(id=>{
+    const s=document.getElementById(id); if(!s)return;
+    const cur=s.value;
+    s.innerHTML='<option value="">All Branches</option>'+bOpts;
+    if(cur) s.value=cur;
+  });
+  ['nm-br'].forEach(id=>{ const s=document.getElementById(id); if(!s)return; const cur=s.value; s.innerHTML='<option value="">All Branches</option>'+bOpts; if(cur)s.value=cur; });
+
+  populateMs('sw-pr-ms', products);
+  populateMs('nm-pr-ms', products);
+
+  // Auto-select sensible defaults
+  if (periods.length>=1) {
+    const L=periods[periods.length-1];
+    ['b-mo','p-mo','cmp-m2','mv-m2','sw-mo','pc-mo'].forEach(id=>{ const s=document.getElementById(id); if(s&&!s.value)s.value=L; });
+  }
+  if (periods.length>=2) {
+    const P=periods[periods.length-2];
+    ['cmp-m1','mv-m1'].forEach(id=>{ const s=document.getElementById(id); if(s&&!s.value)s.value=P; });
+  }
+}
+
+// ════════════════════════════════════════════════
+//  STORED TABLE
+// ════════════════════════════════════════════════
+function renderStoredTable() {
+  const tb = document.getElementById('rep-tbody');
+  if (!reports.length) { tb.innerHTML = emptyRow(4,'No reports available'); return; }
+  tb.innerHTML = [...reports].sort((a,b)=>b.period.localeCompare(a.period)).map(r=>{
+    const branches = [...new Set(r.data.map(d=>d.BranchName).filter(Boolean))].length;
+    const products = [...new Set(r.data.map(d=>d.ProductGroup).filter(Boolean))].length;
+    const isLatest = r.period === sortedPeriods().slice(-1)[0];
+    return `<tr>
+      <td><span class="mtag">📅 ${periodLbl(r.period)}</span></td>
+      <td class="num">${branches}</td>
+      <td class="num">${products}</td>
+      <td><span style="font-size:11px;color:${isLatest?'var(--ok)':'var(--txt3)'}">${isLatest?'✓ Latest':'Available'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════
+//  NPL COMPUTE
+// ════════════════════════════════════════════════
+function computeNPL(data, key) {
+  const g = {};
+  data.forEach(row=>{
+    const k = row[key]||'Unknown';
+    if (!g[k]) g[k]={name:k,f:0,bpo:0,s3f:0,s3b:0};
+    g[k].f++; g[k].bpo+=row.TotalPrincipal;
+    if(isS3(row['FINAL STAGE'])){g[k].s3f++;g[k].s3b+=row.TotalPrincipal;}
+  });
+  return Object.values(g).map(x=>({...x,pct:x.bpo>0?(x.s3b/x.bpo)*100:0}));
+}
+
+function sortNPL(rows, s) {
+  return [...rows].sort((a,b)=>{
+    if(s==='s3p_d') return b.pct-a.pct;
+    if(s==='s3p_a') return a.pct-b.pct;
+    if(s==='s3b_d') return b.s3b-a.s3b;
+    if(s==='tb_d')  return b.bpo-a.bpo;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+}
+
+function nplRows(data, groupKey, sortBy) {
+  const rows = sortNPL(computeNPL(data,groupKey), sortBy);
+  const totF = data.length;
+  const totB = data.reduce((s,d)=>s+d.TotalPrincipal,0);
+  const totS3F = data.filter(d=>isS3(d['FINAL STAGE'])).length;
+  const totS3B = data.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+  const totPct = totB>0?(totS3B/totB)*100:0;
+
+  const body = rows.map(r=>`<tr>
+    <td style="font-weight:500">${r.name}</td>
+    <td class="num">${r.f.toLocaleString()}</td>
+    <td class="num">${fmtM(r.bpo)}</td>
+    <td class="num" style="color:var(--bad)">${r.s3f.toLocaleString()}</td>
+    <td class="num" style="color:var(--bad)">${fmtM(r.s3b)}</td>
+    <td class="num"><span class="pct-val ${pctCls(r.pct)}">${fmtPct(r.pct)}</span></td>
+  </tr>`).join('');
+
+  const foot = `<tr class="total-row">
+    <td>TOTAL</td>
+    <td class="num">${totF.toLocaleString()}</td>
+    <td class="num">${fmtM(totB)}</td>
+    <td class="num" style="color:var(--bad)">${totS3F.toLocaleString()}</td>
+    <td class="num" style="color:var(--bad)">${fmtM(totS3B)}</td>
+    <td class="num"><span class="pct-val ${pctCls(totPct)}">${fmtPct(totPct)}</span></td>
+  </tr>`;
+
+  return { body: body+foot, totF, totB, totS3F, totS3B, totPct };
+}
+
+// ════════════════════════════════════════════════
+//  BRANCH NPL
+// ════════════════════════════════════════════════
+function renderBranch() {
+  const mo=document.getElementById('b-mo').value;
+  const strip=document.getElementById('b-strip');
+  const tb=document.getElementById('b-tbody');
+
+  if (!mo) { tb.innerHTML=emptyRow(6,'Select a month'); strip.style.display='none'; updateTopbarS3(null,null,null); return; }
+
+  // All products data for bank-wide S3%
+  const dataAll=getData(mo,null,null);
+  // Filtered data
+  const data=getDataMs(mo,null,'b-pr-ms');
+  if (!data.length) { tb.innerHTML=emptyRow(6,'No data for selected period'); strip.style.display='none'; updateTopbarS3(dataAll,null,null); return; }
+
+  const {body,totF,totB,totS3F,totS3B,totPct} = nplRows(data,'BranchName','name');
+  tb.innerHTML = body;
+
+  strip.style.display='flex';
+  strip.innerHTML=`
+    <div class="strip-cell"><div class="strip-lbl">Total Files</div><div class="strip-val">${totF.toLocaleString()}</div></div>
+    <div class="strip-cell"><div class="strip-lbl">Total BPO</div><div class="strip-val">Rs.${fmtM(totB)}M</div></div>
+    <div class="strip-cell"><div class="strip-lbl">S3 Files</div><div class="strip-val red">${totS3F.toLocaleString()}</div></div>
+    <div class="strip-cell"><div class="strip-lbl">S3 BPO</div><div class="strip-val red">Rs.${fmtM(totS3B)}M</div></div>
+    <div class="strip-cell"><div class="strip-lbl">Bank S3 %</div><div class="strip-val big">${fmtPct(totPct)}</div></div>`;
+
+  updateTopbarS3(dataAll, data, getMsSelected('b-pr-ms'));
+}
+
+function updateTopbarS3(dataAll, dataFlt, selProducts) {
+  const pillAll=document.getElementById('pill-all-s3');
+  const pillFlt=document.getElementById('pill-flt-s3');
+  if (!dataAll || !dataAll.length) { pillAll.style.display='none'; pillFlt.style.display='none'; return; }
+  const allBPO=dataAll.reduce((s,d)=>s+d.TotalPrincipal,0);
+  const allS3B=dataAll.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+  const allPct=allBPO>0?(allS3B/allBPO)*100:0;
+  document.getElementById('tb-s3-all').textContent=fmtPct(allPct);
+  pillAll.style.display='flex';
+  if (dataFlt && selProducts && selProducts.length>0) {
+    const fBPO=dataFlt.reduce((s,d)=>s+d.TotalPrincipal,0);
+    const fS3B=dataFlt.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+    const fPct=fBPO>0?(fS3B/fBPO)*100:0;
+    document.getElementById('tb-s3-flt').textContent=fmtPct(fPct);
+    pillFlt.style.display='flex';
+  } else { pillFlt.style.display='none'; }
+}
+
+// ════════════════════════════════════════════════
+//  PRODUCT NPL
+// ════════════════════════════════════════════════
+function renderProduct() {
+  const mo=document.getElementById('p-mo').value;
+  const br=document.getElementById('p-br').value;
+  const tb=document.getElementById('p-tbody');
+
+  if (!mo) { tb.innerHTML=emptyRow(6,'Select a month'); return; }
+  const data=getData(mo,br,null);
+  if (!data.length) { tb.innerHTML=emptyRow(6,'No data for selected period'); return; }
+  const {body} = nplRows(data,'ProductGroup','name');
+  tb.innerHTML = body;
+}
+
+function indexNPL(data, key) {
+  const g={};
+  data.forEach(row=>{
+    const k=row[key]||'Unknown';
+    if(!g[k])g[k]={f:0,bpo:0,s3f:0,s3b:0};
+    g[k].f++;g[k].bpo+=row.TotalPrincipal;
+    if(isS3(row['FINAL STAGE'])){g[k].s3f++;g[k].s3b+=row.TotalPrincipal;}
+  });
+  Object.values(g).forEach(v=>v.pct=v.bpo>0?(v.s3b/v.bpo)*100:0);
+  return g;
+}
+
+// ════════════════════════════════════════════════
+//  NPL COMPARISON
+// ════════════════════════════════════════════════
+function renderCmp() {
+  const m1=document.getElementById('cmp-m1').value;
+  const m2=document.getElementById('cmp-m2').value;
+  const br=document.getElementById('cmp-br').value;
+  const COLS=16;
+
+  if (!m1||!m2) {
+    ['cmpb-b','cmpp-b'].forEach(id=>document.getElementById(id).innerHTML=emptyRow(COLS,'Select two months to compare'));
+    ['cmpb-h','cmpp-h'].forEach(id=>document.getElementById(id).innerHTML='');
+    return;
+  }
+
+  const l1=periodLbl(m1), l2=periodLbl(m2);
+  const mkHead=(bId)=>`
+    <tr style="border-bottom:none">
+      <th rowspan="2" onclick="sortCol(this,'${bId}',0)">Name<span class="si"></span></th>
+      <th colspan="5" style="text-align:center;background:rgba(30,109,213,.08);border-left:1px solid var(--border2)">${l1}</th>
+      <th colspan="5" style="text-align:center;background:rgba(245,158,11,.06);border-left:1px solid var(--border2)">${l2}</th>
+      <th colspan="5" style="text-align:center;background:rgba(30,109,213,.13);border-left:2px solid var(--border2)">Change (${l1} → ${l2})</th>
+    </tr>
+    <tr>
+      <th class="num" style="background:rgba(30,109,213,.05);border-left:1px solid var(--border2)" onclick="sortCol(this,'${bId}',1)">Files<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.05)" onclick="sortCol(this,'${bId}',2)">BPO(M)<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.05)" onclick="sortCol(this,'${bId}',3)">S3 Files<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.05)" onclick="sortCol(this,'${bId}',4)">S3 BPO(M)<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.05)" onclick="sortCol(this,'${bId}',5)">S3%<span class="si"></span></th>
+      <th class="num" style="background:rgba(245,158,11,.04);border-left:1px solid var(--border2)" onclick="sortCol(this,'${bId}',6)">Files<span class="si"></span></th>
+      <th class="num" style="background:rgba(245,158,11,.04)" onclick="sortCol(this,'${bId}',7)">BPO(M)<span class="si"></span></th>
+      <th class="num" style="background:rgba(245,158,11,.04)" onclick="sortCol(this,'${bId}',8)">S3 Files<span class="si"></span></th>
+      <th class="num" style="background:rgba(245,158,11,.04)" onclick="sortCol(this,'${bId}',9)">S3 BPO(M)<span class="si"></span></th>
+      <th class="num" style="background:rgba(245,158,11,.04)" onclick="sortCol(this,'${bId}',10)">S3%<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.10);border-left:2px solid var(--border2)" onclick="sortCol(this,'${bId}',11)">Δ Files<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.10)" onclick="sortCol(this,'${bId}',12)">Δ BPO(M)<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.10)" onclick="sortCol(this,'${bId}',13)">Δ S3 Files<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.10)" onclick="sortCol(this,'${bId}',14)">Δ S3 BPO(M)<span class="si"></span></th>
+      <th class="num" style="background:rgba(30,109,213,.10)" onclick="sortCol(this,'${bId}',15)">Δ S3%<span class="si"></span></th>
+    </tr>`;
+
+  document.getElementById('cmpb-h').innerHTML = mkHead('cmpb-b');
+  document.getElementById('cmpp-h').innerHTML = mkHead('cmpp-b');
+  renderCmpTable('cmpb-b','BranchName',  m1,m2,br,COLS);
+  renderCmpTable('cmpp-b','ProductGroup',m1,m2,br,COLS);
+}
+
+function deltaCell(val, isBad, decimals, suffix, leftBorder) {
+  const sty=leftBorder?'background:rgba(30,109,213,.07);border-left:2px solid var(--border2)':'background:rgba(30,109,213,.07)';
+  const abs=Math.abs(val);
+  if(abs<(decimals>0?0.005:0.5)) return `<td class="num" style="${sty}"><span style="color:var(--txt3)">—</span></td>`;
+  const up=val>0;
+  const color=isBad?(up?'var(--bad)':'var(--ok)'):(up?'var(--acc)':'var(--ok)');
+  const arrow=up?'▲':'▼';
+  const display=decimals>0?abs.toFixed(decimals)+suffix:Math.round(abs).toLocaleString()+suffix;
+  return `<td class="num" style="${sty}"><span style="color:${color};font-weight:700;font-size:11px">${arrow} ${display}</span></td>`;
+}
+
+function renderCmpTable(tbId, key, m1, m2, br, COLS) {
+  const tb=document.getElementById(tbId);
+  const sel=getMsSelected('cmp-pr-ms');
+  const filterPr=(d)=>sel&&sel.length?d.filter(x=>sel.includes(x.ProductGroup)):d;
+  let d1=getData(m1,br,null), d2=getData(m2,br,null);
+  d1=filterPr(d1); d2=filterPr(d2);
+  const g1=indexNPL(d1,key), g2=indexNPL(d2,key);
+  const keys=[...new Set([...Object.keys(g1),...Object.keys(g2)])].sort((a,b)=>(a||'').localeCompare(b||''));
+
+  if(!keys.length){tb.innerHTML=emptyRow(COLS,'No data for selection');return;}
+
+  const rows=keys.map(k=>({name:k,a:g1[k]||{f:0,bpo:0,s3f:0,s3b:0,pct:0},b:g2[k]||{f:0,bpo:0,s3f:0,s3b:0,pct:0}}));
+
+  const bodyHtml=rows.map(r=>{
+    const dF  =r.b.f   -r.a.f;
+    const dB  =r.b.bpo -r.a.bpo;
+    const dS3F=r.b.s3f -r.a.s3f;
+    const dS3B=r.b.s3b -r.a.s3b;
+    const dPct=r.b.pct -r.a.pct;
+    return `<tr>
+      <td style="font-weight:500;white-space:nowrap">${r.name}</td>
+      <td class="num" style="border-left:1px solid var(--border2)">${r.a.f.toLocaleString()}</td>
+      <td class="num">${fmtM(r.a.bpo)}</td>
+      <td class="num" style="color:var(--bad)">${r.a.s3f.toLocaleString()}</td>
+      <td class="num" style="color:var(--bad)">${fmtM(r.a.s3b)}</td>
+      <td class="num"><span class="pct-val ${pctCls(r.a.pct)}">${fmtPct(r.a.pct)}</span></td>
+      <td class="num" style="border-left:1px solid var(--border2)">${r.b.f.toLocaleString()}</td>
+      <td class="num">${fmtM(r.b.bpo)}</td>
+      <td class="num" style="color:var(--bad)">${r.b.s3f.toLocaleString()}</td>
+      <td class="num" style="color:var(--bad)">${fmtM(r.b.s3b)}</td>
+      <td class="num"><span class="pct-val ${pctCls(r.b.pct)}">${fmtPct(r.b.pct)}</span></td>
+      ${deltaCell(dF,   false, 0,  '', true)}
+      ${deltaCell(parseFloat((dB/1e6).toFixed(2)),   false, 2, 'M', false)}
+      ${deltaCell(dS3F, true,  0,  '', false)}
+      ${deltaCell(parseFloat((dS3B/1e6).toFixed(2)), true,  2, 'M', false)}
+      ${deltaCell(parseFloat(dPct.toFixed(2)),        true,  2, '%', false)}
+    </tr>`;
+  }).join('');
+
+  const sum=(fn)=>rows.reduce((s,r)=>s+fn(r),0);
+  const t1f=sum(r=>r.a.f), t1b=sum(r=>r.a.bpo), t1s3f=sum(r=>r.a.s3f), t1s3b=sum(r=>r.a.s3b);
+  const t2f=sum(r=>r.b.f), t2b=sum(r=>r.b.bpo), t2s3f=sum(r=>r.b.s3f), t2s3b=sum(r=>r.b.s3b);
+  const t1pct=t1b>0?(t1s3b/t1b)*100:0, t2pct=t2b>0?(t2s3b/t2b)*100:0;
+  const totRow=`<tr class="total-row">
+    <td>TOTAL</td>
+    <td class="num" style="border-left:1px solid var(--border2)">${t1f.toLocaleString()}</td>
+    <td class="num">${fmtM(t1b)}</td>
+    <td class="num" style="color:var(--bad)">${t1s3f.toLocaleString()}</td>
+    <td class="num" style="color:var(--bad)">${fmtM(t1s3b)}</td>
+    <td class="num"><span class="pct-val ${pctCls(t1pct)}">${fmtPct(t1pct)}</span></td>
+    <td class="num" style="border-left:1px solid var(--border2)">${t2f.toLocaleString()}</td>
+    <td class="num">${fmtM(t2b)}</td>
+    <td class="num" style="color:var(--bad)">${t2s3f.toLocaleString()}</td>
+    <td class="num" style="color:var(--bad)">${fmtM(t2s3b)}</td>
+    <td class="num"><span class="pct-val ${pctCls(t2pct)}">${fmtPct(t2pct)}</span></td>
+    ${deltaCell(t2f-t1f,   false, 0,  '', true)}
+    ${deltaCell(parseFloat(((t2b-t1b)/1e6).toFixed(2)),   false, 2, 'M', false)}
+    ${deltaCell(t2s3f-t1s3f, true, 0, '',  false)}
+    ${deltaCell(parseFloat(((t2s3b-t1s3b)/1e6).toFixed(2)), true, 2, 'M', false)}
+    ${deltaCell(parseFloat((t2pct-t1pct).toFixed(2)),        true, 2, '%', false)}
+  </tr>`;
+
+  tb.innerHTML=bodyHtml+totRow;
+}
+
+// ════════════════════════════════════════════════
+//  STAGE MOVEMENT
+// ════════════════════════════════════════════════
+function renderMovement() {
+  const m1=document.getElementById('mv-m1').value;
+  const m2=document.getElementById('mv-m2').value;
+  const br=document.getElementById('mv-br').value;
+  const tb=document.getElementById('mv-tbody');
+
+  if(!m1||!m2){tb.innerHTML=emptyRow(5,'Select two months to compare');return;}
+
+  const d1=getDataMs(m1,br,'mv-pr-ms'), d2=getDataMs(m2,br,'mv-pr-ms');
+  const map1={}, map2={};
+  d1.forEach(r=>map1[r.ArrangementNo]=r);
+  d2.forEach(r=>map2[r.ArrangementNo]=r);
+
+  const allArrs=[...new Set([...Object.keys(map1),...Object.keys(map2)])];
+  const moves={};
+
+  allArrs.forEach(arr=>{
+    const r1=map1[arr], r2=map2[arr];
+    let from, to;
+    if(r1&&r2){
+      from=stageGroup(r1['FINAL STAGE']); to=stageGroup(r2['FINAL STAGE']);
+      if(from===to) return;
+    } else if(r1&&!r2){ from=stageGroup(r1['FINAL STAGE']); to='SETTLED/CONVERTED'; }
+    else { from='NEW LOAN'; to=stageGroup(r2['FINAL STAGE']); }
+
+    const key=`${from} → ${to}`;
+    if(!moves[key]) moves[key]={from,to,loans:[]};
+    moves[key].loans.push({r1,r2,row:r1||r2});
+  });
+
+  if(!Object.keys(moves).length){tb.innerHTML=emptyRow(5,'No stage changes between selected months');return;}
+
+  const ORDER=['NEW LOAN → STAGE1','NEW LOAN → STAGE2','NEW LOAN → STAGE3',
+    'STAGE1 → STAGE2','STAGE1 → STAGE3','STAGE2 → STAGE3',
+    'STAGE3 → STAGE2','STAGE3 → STAGE1','STAGE2 → STAGE1',
+    'STAGE1 → SETTLED/CONVERTED','STAGE2 → SETTLED/CONVERTED','STAGE3 → SETTLED/CONVERTED'];
+
+  const keys=Object.keys(moves).sort((a,b)=>{
+    const ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);
+    if(ia===-1&&ib===-1)return a.localeCompare(b);
+    return (ia===-1?999:ia)-(ib===-1?999:ib);
+  });
+
+  const dirInfo=key=>{
+    if(key.includes('NEW LOAN')) return {lbl:'🆕 New Entry',cls:'b-new'};
+    if(key.includes('SETTLED'))  return {lbl:'✅ Exited',cls:'b-out'};
+    const [f,t]=key.split(' → ');
+    const fn=parseInt(f.replace('STAGE','')),tn=parseInt(t.replace('STAGE',''));
+    if(tn>fn) return {lbl:'📉 Downgrade',cls:'b-s3'};
+    if(tn<fn) return {lbl:'📈 Upgrade',cls:'b-s1'};
+    return {lbl:'—',cls:'b-s2'};
+  };
+
+  let html='';
+  keys.forEach((key,i)=>{
+    const mv=moves[key];
+    const bpo=mv.loans.reduce((s,l)=>s+l.row.TotalPrincipal,0);
+    const di=dirInfo(key);
+    const rid=`mv${i}`;
+    html+=`<tr class="mv-row" onclick="toggleMv('${rid}',this)">
+      <td><span class="mv-toggle" id="t${rid}">▶</span></td>
+      <td style="font-weight:600">${key}</td>
+      <td class="num">${mv.loans.length}</td>
+      <td class="num" style="color:var(--warn)">${fmtM(bpo)}</td>
+      <td><span class="badge ${di.cls}">${di.lbl}</span></td>
+    </tr>
+    <tr class="mv-detail" id="${rid}" style="display:none"><td colspan="5">
+      <div class="mv-inner">
+        <table><thead><tr>
+          <th>Arrangement No</th><th>Customer</th><th>Branch</th><th>Product</th>
+          <th class="num">BPO (M)</th>
+          <th>${periodLbl(m1)} Stage</th><th>${periodLbl(m2)} Stage</th>
+        </tr></thead><tbody>
+        ${mv.loans.map(l=>{
+          const sg1=l.r1?.['FINAL STAGE']||'—', sg2=l.r2?.['FINAL STAGE']||'—';
+          const gc=s=>s.startsWith('STAGE1')?'b-s1':s.startsWith('STAGE2')?'b-s2':s.startsWith('STAGE3')?'b-s3':'b-out';
+          return `<tr>
+            <td>${l.row.ArrangementNo}</td>
+            <td>${l.row.CustomerName||'—'}</td>
+            <td>${l.row.BranchName||'—'}</td>
+            <td>${l.row.ProductGroup||'—'}</td>
+            <td class="num">${fmtM(l.row.TotalPrincipal)}</td>
+            <td><span class="badge ${gc(sg1)}">${sg1}</span></td>
+            <td><span class="badge ${gc(sg2)}">${sg2}</span></td>
+          </tr>`;
+        }).join('')}
+        </tbody></table>
+      </div>
+    </td></tr>`;
+  });
+  tb.innerHTML=html;
+}
+
+function toggleMv(id, row) {
+  const el=document.getElementById(id);
+  const tog=document.getElementById('t'+id);
+  const open=el.style.display==='table-row';
+  el.style.display=open?'none':'table-row';
+  tog.classList.toggle('open',!open);
+}
+
+// ════════════════════════════════════════════════
+//  TREND CHART
+// ════════════════════════════════════════════════
+let chart=null;
+function renderChart() {
+  const me=document.getElementById('ch-me').value;
+  const br=document.getElementById('ch-br').value;
+  const periods=sortedPeriods();
+  const labels=periods.map(periodLbl);
+
+  const getVal=(data)=>{
+    const tot=data.reduce((s,d)=>s+d.TotalPrincipal,0);
+    const s3b=data.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+    if(me==='s3p') return tot>0?parseFloat(((s3b/tot)*100).toFixed(2)):0;
+    if(me==='s3b') return parseFloat((s3b/1e6).toFixed(2));
+    return parseFloat((tot/1e6).toFixed(2));
+  };
+
+  // Single line — responds to all filters (Metric, Branch, Product)
+  const selPr = getMsSelected('ch-pr-ms');
+  const pts = periods.map(p => getVal(getDataMs(p, br||null, 'ch-pr-ms')));
+  const lineLabel = (br||'All Branches') + ' — ' + (selPr&&selPr.length ? selPr.join(', ') : 'All Products');
+
+  const ctx = document.getElementById('trend-canvas').getContext('2d');
+  if(chart){chart.destroy();chart=null;}
+
+  const datasets = [{
+    label: lineLabel,
+    data: pts,
+    borderColor:'#1e6dd5',
+    backgroundColor:'rgba(30,109,213,0.08)',
+    borderWidth:2.5,
+    pointBackgroundColor:'#1e6dd5',
+    pointBorderColor:'#dce9f8',
+    pointBorderWidth:2,
+    pointRadius:5,
+    pointHoverRadius:7,
+    fill:true,
+    tension:0.38,
+  }];
+
+  // ── Dynamic Y-axis ──
+  const allPts = pts.filter(v=>v!=null&&isFinite(v));
+  let yMin=0, yMax=0, tickStep=1;
+
+  if(allPts.length){
+    const dataMin=Math.min(...allPts);
+    const dataMax=Math.max(...allPts);
+    const range=dataMax-dataMin;
+
+    // Step 1: pick a tick step that gives 4-6 ticks across the data range.
+    // Use the actual movement range (not the padded axis range) so tiny
+    // movements always get fine-grained ticks.
+    const niceStep = rawRange => {
+      if(rawRange<=0) return 1;
+      // target ~5 intervals across the movement
+      const rough = rawRange / 5;
+      const exp   = Math.floor(Math.log10(rough));
+      const mag   = Math.pow(10, exp);
+      const f     = rough / mag;
+      // pick the smallest "nice" multiplier that covers the rough step
+      const nice  = f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10;
+      return parseFloat((nice * mag).toPrecision(10));
+    };
+
+    if(range < 1e-9){
+      // Perfectly flat line — create artificial window around the value
+      const centre = dataMax;
+      const window = Math.max(centre * 0.05, me==='s3p' ? 0.5 : 0.1);
+      tickStep = niceStep(window * 2);
+      yMin = Math.max(0, Math.floor((centre - window) / tickStep) * tickStep);
+      yMax = Math.ceil((centre + window) / tickStep) * tickStep;
+    } else {
+      // Compute tight tick step for the actual data movement
+      tickStep = niceStep(range);
+
+      // Snap min/max outward to tick boundaries, adding ≥1 tick of padding each side
+      yMin = Math.max(0, Math.floor(dataMin / tickStep - 1) * tickStep);
+      yMax = Math.ceil(dataMax / tickStep + 1) * tickStep;
+
+      // Safety: ensure at least 4 ticks visible
+      if((yMax - yMin) / tickStep < 4){
+        yMin = Math.max(0, yMin - tickStep);
+        yMax = yMax + tickStep;
+      }
+    }
+
+    // Round to avoid floating-point display artefacts
+    const dp = tickStep < 0.01 ? 4 : tickStep < 0.1 ? 3 : tickStep < 1 ? 2 : 1;
+    yMin = parseFloat(yMin.toFixed(dp));
+    yMax = parseFloat(yMax.toFixed(dp));
+    tickStep = parseFloat(tickStep.toPrecision(6));
+  }
+
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#6a94be',font:{family:'DM Sans',size:12}}},
+        tooltip:{
+          backgroundColor:'#0a1e33',
+          borderColor:'#163354',
+          borderWidth:1,
+          titleColor:'#dce9f8',
+          bodyColor:'#6a94be',
+          padding:10,
+          callbacks:{label:c=>` ${c.dataset.label}: ${me==='s3p'?c.raw+'%':'Rs.'+c.raw+'M'}`}
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(22,51,84,.5)'},ticks:{color:'#6a94be',font:{family:'DM Sans',size:11}}},
+        y:{
+          min: parseFloat(yMin.toFixed(4)),
+          max: parseFloat(yMax.toFixed(4)),
+          grid:{color:'rgba(22,51,84,.5)'},
+          ticks:{
+            color:'#6a94be',
+            font:{family:'DM Sans',size:11},
+            stepSize: tickStep,
+            callback: v => {
+              const dp = tickStep < 0.01 ? 3 : tickStep < 0.1 ? 2 : tickStep < 1 ? 1 : 0;
+              return me==='s3p'
+                ? v.toFixed(dp)+'%'
+                : 'Rs.'+v.toFixed(dp)+'M';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════
+//  COLUMN SORT (header click)
+// ════════════════════════════════════════════════
+function sortCol(th, tbodyId, colIdx) {
+  const tbody=document.getElementById(tbodyId);
+  if(!tbody) return;
+  const ths=[...th.closest('thead').querySelectorAll('th')];
+  const wasDsc=th.classList.contains('desc');
+  ths.forEach(t=>t.classList.remove('asc','desc'));
+  th.classList.add(wasDsc?'asc':'desc');
+  const rows=[...tbody.querySelectorAll('tr:not(.total-row)')];
+  const totalRow=tbody.querySelector('.total-row');
+  const dir=wasDsc?1:-1;
+  rows.sort((a,b)=>{
+    const av=a.cells[colIdx]?.textContent.trim()||'';
+    const bv=b.cells[colIdx]?.textContent.trim()||'';
+    const an=parseFloat(av.replace(/[^0-9.\-]/g,'')),bn=parseFloat(bv.replace(/[^0-9.\-]/g,''));
+    if(!isNaN(an)&&!isNaN(bn)) return (an-bn)*dir;
+    return av.localeCompare(bv)*dir;
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+  if(totalRow) tbody.appendChild(totalRow);
+}
+
+// ════════════════════════════════════════════════
+//  EXCEL EXPORT  (proper CSV — opens cleanly in Excel)
+// ════════════════════════════════════════════════
+function toCSV(rows) {
+  return rows.map(r => r.map(c => {
+    const s = String(c ?? '').replace(/"/g,'""');
+    return /[,"\n\r]/.test(s) ? `"${s}"` : s;
+  }).join(',')).join('\r\n');
+}
+
+function downloadCSV(content, filename) {
+  const blob = new Blob(['\uFEFF'+content], {type:'text/csv;charset=utf-8;'});
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob),
+    download: filename
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function exportExcel(tbodyId, sheetName) {
+  const tbody=document.getElementById(tbodyId);
+  if(!tbody||!tbody.closest('table')) { toast('No data to export','er'); return; }
+  const table=tbody.closest('table');
+  const rows=[];
+  const ths=[...table.querySelectorAll('thead th')];
+  rows.push(ths.map(t=>t.textContent.replace(/[▲▼⇅]/g,'').trim()));
+  [...tbody.querySelectorAll('tr')].forEach(tr=>{
+    rows.push([...tr.querySelectorAll('td')].map(td=>td.textContent.replace(/[▲▼]/g,'').trim()));
+  });
+  // Convert numeric strings
+  const cleaned = rows.map(r => r.map(c => {
+    const n = parseFloat(c.replace(/[^0-9.\-]/g,''));
+    return (!isNaN(n) && c.replace(/[^0-9.\-]/g,'')===c.trim()) ? n : c;
+  }));
+  downloadCSV(toCSV(cleaned), `${sheetName}_${new Date().toISOString().slice(0,10)}.csv`);
+  toast(`Exported ${sheetName}`, 'ok');
+}
+
+function exportExcelCmp() {
+  const m1=document.getElementById('cmp-m1').value, m2=document.getElementById('cmp-m2').value;
+  if(!m1||!m2){toast('Select two months first','er');return;}
+  const rows=[];
+  const getTableRows=(hId,bId,sectionLabel)=>{
+    rows.push([sectionLabel]);
+    const ths=[...document.querySelectorAll(`#${hId} th`)];
+    if(ths.length) rows.push(ths.map(t=>t.textContent.replace(/[▲▼⇅]/g,'').trim()));
+    [...document.querySelectorAll(`#${bId} tr`)].forEach(tr=>{
+      rows.push([...tr.querySelectorAll('td')].map(td=>td.textContent.replace(/[▲▼]/g,'').trim()));
+    });
+    rows.push([]);
+  };
+  getTableRows('cmpb-h','cmpb-b','Branch Wise Comparison');
+  getTableRows('cmpp-h','cmpp-b','Product Wise Comparison');
+  downloadCSV(toCSV(rows), `NPL_Comparison_${periodLbl(m1)}_vs_${periodLbl(m2)}_${new Date().toISOString().slice(0,10)}.csv`);
+  toast('Exported NPL Comparison','ok');
+}
+
+// ════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════
+function emptyRow(cols,msg) {
+  return `<tr><td colspan="${cols}"><div class="empty"><div class="empty-ico">📭</div><div class="empty-title">${msg}</div></div></td></tr>`;
+}
+
+// ════════════════════════════════════════════════
+//  POPUP MANAGEMENT
+// ════════════════════════════════════════════════
+const popRenderFn = {stage:renderStageWise, nplmv:renderNPLMovement, prodcomp:renderProductComp, brtgt:renderBranchTarget};
+function openCPop(id) {
+  // Auto-set month/year for Branch Target popup to latest available report period
+  if (id === 'brtgt') {
+    const periods = sortedPeriods();
+    if (periods.length) {
+      const last = periods[periods.length-1];
+      const [y, m] = last.split('-');
+      document.getElementById('bt-yr').value = y;
+      document.getElementById('bt-mo').value = m;
+    }
+    // Auto-set year to match a stored target year if available
+    const btYr = document.getElementById('bt-yr').value;
+    if (targets.length && !targets.find(t=>t.year===btYr)) {
+      document.getElementById('bt-yr').value = targets[targets.length-1].year;
+    }
+  }
+  document.getElementById('pop-'+id).classList.add('open');
+  document.body.style.overflow='hidden';
+  if(popRenderFn[id]) setTimeout(()=>popRenderFn[id](), 80);
+}
+function closeCPop(id) {
+  document.getElementById('pop-'+id).classList.remove('open');
+  document.body.style.overflow='';
+}
+function cpopBgClose(e, id) {
+  if(e.target===document.getElementById('pop-'+id)) closeCPop(id);
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') document.querySelectorAll('.cpop-ov.open').forEach(el=>el.classList.remove('open')); });
+
+// ════════════════════════════════════════════════
+//  POPUP CHART INSTANCES
+// ════════════════════════════════════════════════
+const popCharts = {};
+function destroyPopChart(k) { if(popCharts[k]){popCharts[k].destroy();delete popCharts[k];} }
+
+const CHART_COLORS = {
+  stage1:'rgba(16,185,129,0.75)', stage1b:'rgba(16,185,129,0.9)',
+  stage2:'rgba(245,158,11,0.75)', stage2b:'rgba(245,158,11,0.9)',
+  stage3:'rgba(239,68,68,0.75)',  stage3b:'rgba(239,68,68,0.9)',
+  bar:'rgba(30,109,213,0.45)', barB:'rgba(30,109,213,0.8)',
+  line:'#1e6dd5',
+};
+const chartGridOpts = { grid:{color:'rgba(22,51,84,.45)'}, ticks:{color:'#6a94be',font:{family:'DM Sans',size:11}} };
+const chartLegendOpts = { labels:{color:'#6a94be',font:{family:'DM Sans',size:12}} };
+const chartTooltipOpts = { backgroundColor:'#071829',borderColor:'#163354',borderWidth:1,titleColor:'#dce9f8',bodyColor:'#6a94be',padding:10 };
+
+// ════════════════════════════════════════════════
+//  CHART 1 — STAGE WISE ANALYSIS
+// ════════════════════════════════════════════════
+function renderStageWise() {
+  const mo = document.getElementById('sw-mo').value;
+  const br = document.getElementById('sw-br').value;
+  const tb = document.getElementById('sw-tbody');
+  const sumEl = document.getElementById('sw-summary');
+
+  if (!mo) { tb.innerHTML=emptyRow(6,'Select a month'); return; }
+  const data = getDataMs(mo, br||null, 'sw-pr-ms');
+  if (!data.length) { tb.innerHTML=emptyRow(6,'No data for selection'); destroyPopChart('swPie'); return; }
+
+  const SORDER = ['STAGE1','STAGE2','STAGE3'];
+  const sg = {};
+  data.forEach(row=>{
+    const g = stageGroup(row['FINAL STAGE']);
+    if(!sg[g]) sg[g]={f:0,bpo:0,s3f:0,s3b:0};
+    sg[g].f++; sg[g].bpo+=row.TotalPrincipal;
+    if(isS3(row['FINAL STAGE'])){sg[g].s3f++;sg[g].s3b+=row.TotalPrincipal;}
+  });
+  const totF=data.length, totB=data.reduce((s,d)=>s+d.TotalPrincipal,0);
+
+  const clsMap={STAGE1:'b-s1',STAGE2:'b-s2',STAGE3:'b-s3'};
+  tb.innerHTML = SORDER.filter(s=>sg[s]).map(s=>{
+    const d=sg[s]; const pct=totB>0?(d.bpo/totB)*100:0;
+    return `<tr>
+      <td><span class="badge ${clsMap[s]||'b-out'}">${s}</span></td>
+      <td class="num">${d.f.toLocaleString()}</td>
+      <td class="num">${fmtM(d.bpo)}</td>
+      <td class="num"><span class="pct-val ${pctCls(s==='STAGE3'?pct:0)}">${fmtPct(pct)}</span></td>
+      <td class="num" style="color:var(--bad)">${d.s3f.toLocaleString()}</td>
+      <td class="num" style="color:var(--bad)">${fmtM(d.s3b)}</td>
+    </tr>`;
+  }).join('') + `<tr class="total-row"><td>TOTAL</td>
+    <td class="num">${totF.toLocaleString()}</td><td class="num">${fmtM(totB)}</td>
+    <td class="num">100.00%</td>
+    <td class="num" style="color:var(--bad)">${data.filter(d=>isS3(d['FINAL STAGE'])).length}</td>
+    <td class="num" style="color:var(--bad)">${fmtM(data.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0))}</td>
+  </tr>`;
+
+  // Pie
+  const pieData = SORDER.filter(s=>sg[s]);
+  const pieColors = {STAGE1:CHART_COLORS.stage1,STAGE2:CHART_COLORS.stage2,STAGE3:CHART_COLORS.stage3};
+  destroyPopChart('swPie');
+  popCharts['swPie'] = new Chart(document.getElementById('sw-pie-canvas').getContext('2d'),{
+    type:'doughnut',
+    data:{
+      labels: pieData,
+      datasets:[{
+        data: pieData.map(s=>parseFloat(fmtM(sg[s].bpo))),
+        backgroundColor: pieData.map(s=>pieColors[s]),
+        borderColor:'#0a1e33', borderWidth:3,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'55%',
+      plugins:{
+        legend:{position:'bottom',labels:{color:'#6a94be',font:{family:'DM Sans',size:12},padding:14}},
+        tooltip:{...chartTooltipOpts, callbacks:{
+          label: c=>{
+            const pct=totB>0?((sg[c.label]?.bpo||0)/totB*100).toFixed(2):'0.00';
+            return ` ${c.label}: Rs.${c.raw}M (${pct}%)`;
+          }
+        }},
+        datalabels:{
+          color:'#fff', font:{weight:'700',size:13},
+          formatter:(v,c)=>{
+            const pct=totB>0?(v/(totB/1e6)*100).toFixed(1):'0';
+            return pct+'%';
+          },
+          display: c => (c.dataset.data[c.dataIndex]/(totB/1e6)) >= 0.05
+        }
+      }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// ════════════════════════════════════════════════
+//  CHART 2 — NPL MOVEMENT (COMBO BAR+LINE)
+// ════════════════════════════════════════════════
+function renderNPLMovement() {
+  const me = document.getElementById('nm-me').value;
+  const br = document.getElementById('nm-br').value;
+  const periods = sortedPeriods();
+  if (!periods.length) return;
+  const labels = periods.map(periodLbl);
+
+  const getVal = (data) => {
+    const tot=data.reduce((s,d)=>s+d.TotalPrincipal,0);
+    const s3b=data.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+    if(me==='s3p') return tot>0?parseFloat(((s3b/tot)*100).toFixed(2)):0;
+    if(me==='s3b') return parseFloat((s3b/1e6).toFixed(2));
+    return parseFloat((tot/1e6).toFixed(2));
+  };
+  const getNPLPct = (data) => {
+    const tot=data.reduce((s,d)=>s+d.TotalPrincipal,0);
+    const s3b=data.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+    return tot>0?parseFloat(((s3b/tot)*100).toFixed(2)):0;
+  };
+
+  const pts     = periods.map(p=>getVal(getDataMs(p, br||null, 'nm-pr-ms')));
+  const nplPcts = periods.map(p=>getNPLPct(getDataMs(p, br||null, 'nm-pr-ms')));
+  const suffix  = me==='s3p'?'%':'M';
+  const metricLbl = me==='s3p'?'S3 %':me==='s3b'?'S3 BPO (Rs.M)':'Total BPO (Rs.M)';
+
+  destroyPopChart('nplMv');
+  popCharts['nplMv'] = new Chart(document.getElementById('nm-canvas').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {
+          type:'bar', label:metricLbl, data:pts,
+          backgroundColor:CHART_COLORS.bar, borderColor:CHART_COLORS.barB, borderWidth:1,
+          yAxisID:'y',
+          datalabels:{
+            anchor:'end', align:'top', color:'#f59e0b',
+            font:{size:10,weight:'700',family:'DM Sans'},
+            formatter:(_,ctx)=> me==='s3p' ? pts[ctx.dataIndex]+'%' : nplPcts[ctx.dataIndex]+'%'
+          }
+        },
+        {
+          type:'line', label:'Trend', data:pts,
+          borderColor:CHART_COLORS.line, backgroundColor:'transparent',
+          borderWidth:2.5, pointBackgroundColor:CHART_COLORS.line, pointBorderColor:'#dce9f8',
+          pointBorderWidth:2, pointRadius:5, pointHoverRadius:7, tension:0.38,
+          yAxisID:'y', datalabels:{display:false}
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{...chartLegendOpts},
+        tooltip:{...chartTooltipOpts, callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}${suffix}`}},
+        datalabels:{}
+      },
+      scales:{
+        x:{...chartGridOpts},
+        y:{...chartGridOpts, ticks:{...chartGridOpts.ticks, callback:v=>me==='s3p'?v+'%':'Rs.'+v+'M'}}
+      }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// ════════════════════════════════════════════════
+//  CHART 3 — PRODUCT COMPOSITION
+// ════════════════════════════════════════════════
+function renderProductComp() {
+  const mo = document.getElementById('pc-mo').value;
+  const br = document.getElementById('pc-br').value;
+  if (!mo) return;
+
+  const data = getData(mo, br||null, null);
+  if (!data.length) { destroyPopChart('prodComp'); return; }
+
+  const g = {};
+  data.forEach(row=>{
+    const k=row.ProductGroup||'Unknown';
+    if(!g[k]) g[k]={pl:0,npl:0};
+    if(isS3(row['FINAL STAGE'])) g[k].npl+=row.TotalPrincipal;
+    else g[k].pl+=row.TotalPrincipal;
+  });
+  const products = Object.keys(g).sort((a,b)=>{
+    const ta=(g[a].pl+g[a].npl), tb=(g[b].pl+g[b].npl); return tb-ta;
+  });
+  const plData  = products.map(p=>parseFloat((g[p].pl /1e6).toFixed(2)));
+  const nplData = products.map(p=>parseFloat((g[p].npl/1e6).toFixed(2)));
+
+  destroyPopChart('prodComp');
+  popCharts['prodComp'] = new Chart(document.getElementById('pc-canvas').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:products,
+      datasets:[
+        {
+          label:'PL (Stage 1+2)', data:plData,
+          backgroundColor:CHART_COLORS.stage1, borderColor:CHART_COLORS.stage1b, borderWidth:1,
+          stack:'comp', datalabels:{display:false}
+        },
+        {
+          label:'NPL (Stage 3)', data:nplData,
+          backgroundColor:CHART_COLORS.stage3, borderColor:CHART_COLORS.stage3b, borderWidth:1,
+          stack:'comp',
+          datalabels:{
+            anchor:'end', align:'top', color:'#ef4444',
+            font:{size:10,weight:'700',family:'DM Sans'},
+            formatter:(v,ctx)=>{
+              const tot=plData[ctx.dataIndex]+v;
+              return tot>0?(v/tot*100).toFixed(1)+'%':'';
+            },
+            display: (ctx)=>(plData[ctx.dataIndex]+nplData[ctx.dataIndex])>0
+          }
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{stacked:true, ...chartGridOpts, ticks:{...chartGridOpts.ticks, maxRotation:40}},
+        y:{stacked:true, ...chartGridOpts, ticks:{...chartGridOpts.ticks, callback:v=>'Rs.'+v+'M'}}
+      },
+      plugins:{
+        legend:{...chartLegendOpts},
+        tooltip:{...chartTooltipOpts, callbacks:{
+          label:c=>` ${c.dataset.label}: Rs.${c.raw}M`,
+          footer: items=>{
+            const idx=items[0].dataIndex;
+            const tot=plData[idx]+nplData[idx];
+            const nplPct=tot>0?(nplData[idx]/tot*100).toFixed(2):0;
+            return `Total: Rs.${tot.toFixed(2)}M  |  NPL%: ${nplPct}%`;
+          }
+        }},
+        datalabels:{}
+      }
+    },
+    plugins:[ChartDataLabels]
+  });
+}
+
+// ════════════════════════════════════════════════
+//  CHART 4 — BRANCH TARGET
+// ════════════════════════════════════════════════
+function renderBranchTarget() {
+  const mo  = document.getElementById('bt-mo').value;
+  const yr  = document.getElementById('bt-yr').value;
+  const con = document.getElementById('bt-container');
+  const sum = document.getElementById('bt-summary');
+
+  if (!mo || !yr) { con.innerHTML=emptyDiv('Select month and year'); sum.style.display='none'; return; }
+
+  const period = `${yr}-${String(mo).padStart(2,'0')}`;
+  const rpt    = reports.find(x=>x.period===period);
+  const tgt    = targets.find(t=>t.year===yr);
+
+  if (!rpt) { con.innerHTML=emptyDiv(`No loan report found for ${periodLbl(period)}`); sum.style.display='none'; return; }
+
+  // Exclude EPF.LOANS
+  const EPF = 'EPF.LOANS';
+  const actData = rpt.data.filter(d=>(d.ProductGroup||'').toUpperCase().replace(/\s/g,'')!==EPF && (d.Product||'').toUpperCase().replace(/\s/g,'')!==EPF);
+  const moIdx = parseInt(mo)-1;
+
+  // Group actual by branch
+  const bd = {};
+  actData.forEach(row=>{
+    const b=row.BranchName||'Unknown';
+    if(!bd[b]) bd[b]={tot:0,s3:0};
+    bd[b].tot+=row.TotalPrincipal;
+    if(isS3(row['FINAL STAGE'])) bd[b].s3+=row.TotalPrincipal;
+  });
+
+  const branches = Object.keys(bd).sort();
+  let rows = branches.map(b=>{
+    const actual = bd[b].tot>0?(bd[b].s3/bd[b].tot)*100:0;
+    const tgtRaw = tgt?.data?.[b]?.[moIdx];
+    const targetPct = (tgtRaw!==undefined && tgtRaw!==null) ? tgtRaw*100 : null;
+    const diff = targetPct!==null ? actual - targetPct : null; // +ve = behind, -ve = ahead
+    return {b, actual, targetPct, diff, tot:bd[b].tot, s3:bd[b].s3};
+  });
+
+  // Apply sort
+  const sortBy  = document.getElementById('bt-sortby')?.value  || 'branch';
+  const sortDir = document.getElementById('bt-sortdir')?.value || 'asc';
+  const mul = sortDir==='asc' ? 1 : -1;
+  rows.sort((a,b)=>{
+    if (sortBy==='branch')  return mul * a.b.localeCompare(b.b);
+    if (sortBy==='actual')  return mul * (a.actual - b.actual);
+    if (sortBy==='target') {
+      // Branches with no target go to the bottom regardless of direction
+      if (a.targetPct===null && b.targetPct===null) return 0;
+      if (a.targetPct===null) return 1;
+      if (b.targetPct===null) return -1;
+      return mul * (a.targetPct - b.targetPct);
+    }
+    if (sortBy==='diff') {
+      if (a.diff===null && b.diff===null) return 0;
+      if (a.diff===null) return 1;
+      if (b.diff===null) return -1;
+      return mul * (a.diff - b.diff);
+    }
+    return 0;
+  });
+
+  // Summary strip
+  const withTgt = rows.filter(r=>r.targetPct!==null);
+  const ahead   = withTgt.filter(r=>r.actual<=r.targetPct).length;
+  const behind  = withTgt.filter(r=>r.actual>r.targetPct).length;
+  const bankActual = actData.reduce((s,d)=>s+d.TotalPrincipal,0);
+  const bankS3     = actData.filter(d=>isS3(d['FINAL STAGE'])).reduce((s,d)=>s+d.TotalPrincipal,0);
+  const bankPct    = bankActual>0?(bankS3/bankActual)*100:0;
+  sum.style.display='flex';
+  sum.innerHTML=`
+    <div class="tgt-cell"><div class="tgt-lbl">Bank NPL % (ex-EPF)</div><div class="tgt-val ${pctCls(bankPct)}">${fmtPct(bankPct)}</div></div>
+    <div class="tgt-cell"><div class="tgt-lbl">Branches Ahead</div><div class="tgt-val" style="color:var(--ok)">${ahead}</div></div>
+    <div class="tgt-cell"><div class="tgt-lbl">Branches Behind</div><div class="tgt-val" style="color:var(--bad)">${behind}</div></div>
+    <div class="tgt-cell"><div class="tgt-lbl">No Target Set</div><div class="tgt-val" style="color:var(--txt3)">${rows.length-withTgt.length}</div></div>`;
+
+  if (!rows.length) { con.innerHTML=emptyDiv('No branch data available'); return; }
+
+  // Progress bars
+  con.innerHTML = rows.map(r=>{
+    if (r.targetPct===null) return `<div class="prog-row">
+      <div class="prog-br-name">${r.b}</div>
+      <div class="prog-main"><div class="prog-stats"><span>Actual (ex-EPF): <b style="color:var(--txt2)">${r.actual.toFixed(2)}%</b></span></div></div>
+      <div class="prog-status"><span class="badge b-out" style="font-size:10px">No Target</span></div>
+    </div>`;
+    const isAhead = r.actual<=r.targetPct;
+    const maxVal  = Math.max(r.actual, r.targetPct)*1.2 || 1;
+    const fillPct = Math.min((r.actual/maxVal)*100, 100);
+    const markPct = Math.min((r.targetPct/maxVal)*100, 100);
+    const diff    = Math.abs(r.targetPct-r.actual);
+    const fillClr = isAhead?'rgba(16,185,129,.7)':'rgba(239,68,68,.7)';
+    return `<div class="prog-row">
+      <div class="prog-br-name">${r.b}</div>
+      <div class="prog-main">
+        <div class="prog-track">
+          <div class="prog-fill" style="width:${fillPct.toFixed(1)}%;background:${fillClr}"></div>
+          <div class="prog-marker" style="left:calc(${markPct.toFixed(1)}% - 1px)" title="Target: ${r.targetPct.toFixed(2)}%"></div>
+        </div>
+        <div class="prog-stats">
+          <span>Actual: <b style="color:${isAhead?'var(--ok)':'var(--bad)'}">${r.actual.toFixed(2)}%</b></span>
+          <span>Target: <b style="color:var(--txt)">${r.targetPct.toFixed(2)}%</b></span>
+          <span style="color:var(--txt3)">${fmtM(r.tot)} M BPO</span>
+        </div>
+      </div>
+      <div class="prog-status">
+        <span class="badge ${isAhead?'b-s1':'b-s3'}">${isAhead?'✓ AHEAD':'✗ BEHIND'} ${diff.toFixed(2)}%</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function emptyDiv(msg) { return `<div class="empty" style="padding:40px"><div class="empty-ico">📭</div><div class="empty-title">${msg}</div></div>`; }
+
+// ════════════════════════════════════════════════
+//  TARGET FILE HANDLING
+// ════════════════════════════════════════════════
+// Month-name columns used in the CSV format (case-insensitive match)
+const TARGET_MONTHS     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const TARGET_MONTH_MAP  = Object.fromEntries(TARGET_MONTHS.map((m,i)=>[m.toLowerCase(),i]));
+['january','february','march','april','may','june','july','august','september','october','november','december']
+  .forEach((m,i)=>TARGET_MONTH_MAP[m]=i);
+['1','2','3','4','5','6','7','8','9','10','11','12'].forEach((m,i)=>TARGET_MONTH_MAP[m]=i);
+['01','02','03','04','05','06','07','08','09','10','11','12'].forEach((m,i)=>TARGET_MONTH_MAP[m]=i);
+
+const MO_LABELS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function renderStoredTargets(){
+  const tb=document.getElementById('tgt-tbody');
+  if(!targets.length){tb.innerHTML=emptyRow(4,'No targets set — contact administrator');return;}
+  tb.innerHTML=[...targets].sort((a,b)=>b.year.localeCompare(a.year)).map(t=>{
+    const brs=Object.keys(t.data||{}).length;
+    const dt=new Date(t.uploadedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    const detailId=`tgt-det-${t.year}`;
+    const innerRows=Object.entries(t.data||{}).sort((a,b)=>a[0].localeCompare(b[0])).map(([br,vals])=>{
+      const cells=MO_LABELS.map((_,i)=>{
+        const v=vals[i]; const pct=(v!==undefined&&v!==null)?(v>1?v:v*100):null;
+        return `<td style="text-align:right;padding:5px 8px;font-size:11px;color:var(--txt);font-variant-numeric:tabular-nums">${pct!==null?pct.toFixed(2)+'%':'—'}</td>`;
+      }).join('');
+      return `<tr style="border-bottom:1px solid rgba(22,51,84,.5)"><td style="padding:5px 10px;font-size:11px;font-weight:600;white-space:nowrap;color:var(--txt)">${br}</td>${cells}</tr>`;
+    }).join('');
+    const moHeaders=MO_LABELS.map(m=>`<th style="padding:5px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--txt3);white-space:nowrap;background:var(--bg0)">${m}</th>`).join('');
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;cursor:pointer" onclick="toggleTgtDet('${t.year}')">
+        <span id="tgt-tog-${t.year}" style="font-size:11px;color:var(--txt3);display:inline-block;transition:transform .2s">▶</span>
+      </td>
+      <td><span class="mtag">📅 ${t.year}</span></td>
+      <td class="num" style="color:var(--txt2)">${brs}</td>
+      <td style="font-size:11px;color:var(--txt3)">${dt}</td>
+    </tr>
+    <tr id="${detailId}" style="display:none"><td colspan="4" style="padding:0;background:var(--bg1)">
+      <div style="overflow-x:auto;max-height:280px;overflow-y:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:700px">
+          <thead><tr>
+            <th style="padding:5px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--txt3);background:var(--bg0);white-space:nowrap">Branch</th>
+            ${moHeaders}
+          </tr></thead>
+          <tbody>${innerRows}</tbody>
+        </table>
+      </div>
+    </td></tr>`;
+  }).join('');
+}
+function toggleTgtDet(yr){
+  const row=document.getElementById(`tgt-det-${yr}`);
+  const tog=document.getElementById(`tgt-tog-${yr}`);
+  if(!row)return;
+  const open=row.style.display==='none'||row.style.display==='';
+  row.style.display=open?'table-row':'none';
+  tog.style.transform=open?'rotate(90deg)':'none';
+}
+
+
+// ════════════════════════════════════════════════
+//  MINI PREVIEW CHARTS
+// ════════════════════════════════════════════════
+const miniCharts = {};
+function destroyMini(k){if(miniCharts[k]){miniCharts[k].destroy();delete miniCharts[k];}}
+
+const MINI_OPTS = {
+  responsive:true, maintainAspectRatio:false,
+  animation:{duration:700},
+  plugins:{legend:{display:false},tooltip:{enabled:false},datalabels:{display:false}},
+  scales:{x:{display:false},y:{display:false}},
+  elements:{point:{radius:0}}
+};
+
+function renderMiniCharts(){
+  const periods=sortedPeriods();
+  const lastP=periods[periods.length-1];
+
+  // ── Mini 1: Stage Doughnut ──
+  destroyMini('stage');
+  const cv1=document.getElementById('mini-stage');
+  if(cv1){
+    if(lastP){
+      const d=getData(lastP,null,null);
+      const s1=d.filter(x=>stageGroup(x['FINAL STAGE'])==='STAGE1').reduce((s,r)=>s+r.TotalPrincipal,0);
+      const s2=d.filter(x=>stageGroup(x['FINAL STAGE'])==='STAGE2').reduce((s,r)=>s+r.TotalPrincipal,0);
+      const s3=d.filter(x=>stageGroup(x['FINAL STAGE'])==='STAGE3').reduce((s,r)=>s+r.TotalPrincipal,0);
+      miniCharts['stage']=new Chart(cv1.getContext('2d'),{
+        type:'doughnut',
+        data:{
+          labels:['Stage 1','Stage 2','Stage 3'],
+          datasets:[{data:[s1/1e6,s2/1e6,s3/1e6],backgroundColor:[CHART_COLORS.stage1,CHART_COLORS.stage2,CHART_COLORS.stage3],borderColor:'#071829',borderWidth:2}]
+        },
+        options:{...MINI_OPTS,cutout:'55%'}
+      });
+    } else {
+      miniCharts['stage']=new Chart(cv1.getContext('2d'),{type:'doughnut',data:{labels:['S1','S2','S3'],datasets:[{data:[40,30,30],backgroundColor:['rgba(22,51,84,.5)','rgba(22,51,84,.38)','rgba(22,51,84,.25)'],borderWidth:0}]},options:{...MINI_OPTS,cutout:'55%'}});
+    }
+  }
+
+  // ── Mini 2: NPL Trend Combo Bar+Line ──
+  destroyMini('nplmv');
+  const cv2=document.getElementById('mini-nplmv');
+  if(cv2){
+    if(periods.length>0){
+      const pts=periods.map(p=>{
+        const d=getData(p,null,null);
+        const tot=d.reduce((s,r)=>s+r.TotalPrincipal,0);
+        const s3=d.filter(x=>isS3(x['FINAL STAGE'])).reduce((s,r)=>s+r.TotalPrincipal,0);
+        return tot>0?parseFloat(((s3/tot)*100).toFixed(2)):0;
+      });
+      miniCharts['nplmv']=new Chart(cv2.getContext('2d'),{
+        type:'bar',
+        data:{
+          labels:periods.map(periodLbl),
+          datasets:[
+            {type:'bar',data:pts,backgroundColor:'rgba(30,109,213,0.4)',borderColor:'rgba(30,109,213,0.6)',borderWidth:1},
+            {type:'line',data:pts,borderColor:'#1e6dd5',borderWidth:2,fill:false,tension:0.4,pointRadius:0}
+          ]
+        },
+        options:{...MINI_OPTS}
+      });
+    } else {
+      const fake=[5,6,5.5,7,8,7.5];
+      miniCharts['nplmv']=new Chart(cv2.getContext('2d'),{type:'bar',data:{labels:fake.map((_,i)=>i),datasets:[{type:'bar',data:fake,backgroundColor:'rgba(22,51,84,.5)',borderWidth:0},{type:'line',data:fake,borderColor:'rgba(22,51,84,.7)',borderWidth:1.5,fill:false,tension:0.4,pointRadius:0}]},options:{...MINI_OPTS}});
+    }
+  }
+
+  // ── Mini 3: Stacked Product Bar ──
+  destroyMini('prodcomp');
+  const cv3=document.getElementById('mini-prodcomp');
+  if(cv3){
+    if(lastP){
+      const d=getData(lastP,null,null);
+      const g={};
+      d.forEach(r=>{const k=r.ProductGroup||'?';if(!g[k])g[k]={pl:0,npl:0};if(isS3(r['FINAL STAGE']))g[k].npl+=r.TotalPrincipal;else g[k].pl+=r.TotalPrincipal;});
+      const pks=Object.keys(g).sort((a,b)=>(g[b].pl+g[b].npl)-(g[a].pl+g[a].npl)).slice(0,6);
+      miniCharts['prodcomp']=new Chart(cv3.getContext('2d'),{
+        type:'bar',
+        data:{
+          labels:pks,
+          datasets:[
+            {data:pks.map(k=>parseFloat((g[k].pl/1e6).toFixed(1))),backgroundColor:CHART_COLORS.stage1,stack:'s',borderWidth:0},
+            {data:pks.map(k=>parseFloat((g[k].npl/1e6).toFixed(1))),backgroundColor:CHART_COLORS.stage3,stack:'s',borderWidth:0}
+          ]
+        },
+        options:{...MINI_OPTS,scales:{x:{display:false,stacked:true},y:{display:false,stacked:true}}}
+      });
+    } else {
+      miniCharts['prodcomp']=new Chart(cv3.getContext('2d'),{type:'bar',data:{labels:['A','B','C','D'],datasets:[{data:[40,30,50,20],backgroundColor:'rgba(16,185,129,.35)',stack:'s',borderWidth:0},{data:[8,6,14,4],backgroundColor:'rgba(239,68,68,.45)',stack:'s',borderWidth:0}]},options:{...MINI_OPTS,scales:{x:{display:false,stacked:true},y:{display:false,stacked:true}}}});
+    }
+  }
+
+  // ── Mini 4: Branch NPL horizontal bar ──
+  destroyMini('brtgt');
+  const cv4=document.getElementById('mini-brtgt');
+  if(cv4){
+    if(lastP){
+      const EPF='EPF.LOANS';
+      const actD=getData(lastP,null,null).filter(d=>(d.ProductGroup||'').toUpperCase().replace(/\s/g,'')!==EPF&&(d.Product||'').toUpperCase().replace(/\s/g,'')!==EPF);
+      const bd={};
+      actD.forEach(r=>{const b=r.BranchName||'?';if(!bd[b])bd[b]={tot:0,s3:0};bd[b].tot+=r.TotalPrincipal;if(isS3(r['FINAL STAGE']))bd[b].s3+=r.TotalPrincipal;});
+      const brs=Object.keys(bd).sort().slice(0,6);
+      const vals=brs.map(b=>bd[b].tot>0?parseFloat(((bd[b].s3/bd[b].tot)*100).toFixed(2)):0);
+      miniCharts['brtgt']=new Chart(cv4.getContext('2d'),{
+        type:'bar',
+        data:{labels:brs,datasets:[{data:vals,backgroundColor:vals.map(v=>v>15?'rgba(239,68,68,.6)':v>5?'rgba(245,158,11,.6)':'rgba(16,185,129,.6)'),borderWidth:0}]},
+        options:{...MINI_OPTS,indexAxis:'y'}
+      });
+    } else {
+      miniCharts['brtgt']=new Chart(cv4.getContext('2d'),{type:'bar',data:{labels:['A','B','C','D','E'],datasets:[{data:[12,8,18,5,15],backgroundColor:['rgba(245,158,11,.5)','rgba(16,185,129,.5)','rgba(239,68,68,.5)','rgba(16,185,129,.5)','rgba(239,68,68,.5)'],borderWidth:0}]},options:{...MINI_OPTS,indexAxis:'y'}});
+    }
+  }
+}
+(async()=>{
+  // Build multi-selects (empty initially — populated in refreshDropdowns)
+  buildMultiSelect('b-pr-ms',  renderBranch);
+  buildMultiSelect('cmp-pr-ms',renderCmp);
+  buildMultiSelect('mv-pr-ms', renderMovement);
+  buildMultiSelect('ch-pr-ms', renderChart);
+  buildMultiSelect('sw-pr-ms', renderStageWise);
+  buildMultiSelect('nm-pr-ms', renderNPLMovement);
+
+  await initDashboard();
+})();
+</script>
+</body>
+</html>

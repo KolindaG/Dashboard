@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMIB Dashboard — Admin</title>
+<style>
+:root{--bg0:#060f1c;--bg1:#0b1829;--bg2:#0d1f35;--bg3:#122040;--border:rgba(22,51,84,.9);--txt:#dce9f8;--txt2:#8aaac8;--txt3:#4d6e8a;--acc:#1e6dd5;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--gold:#c6a23e;--gold2:#e8c96a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg0);color:var(--txt);min-height:100vh}
+a{color:var(--acc);text-decoration:none}
+.hd{background:var(--bg1);border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.hd-logo{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;color:#0b1829}
+.hd-title{font-size:14px;font-weight:700;color:var(--txt);letter-spacing:.04em}
+.hd-sub{font-size:11px;color:var(--txt3);margin-left:4px}
+.main{max-width:860px;margin:0 auto;padding:28px 20px;display:flex;flex-direction:column;gap:20px}
+#auth-screen{position:fixed;inset:0;background:var(--bg0);display:flex;align-items:center;justify-content:center;z-index:200}
+.auth-box{background:var(--bg1);border:1px solid var(--border);border-radius:14px;padding:36px 40px;width:340px;text-align:center}
+.auth-box h2{font-size:18px;font-weight:700;margin-bottom:6px}
+.auth-box p{font-size:12px;color:var(--txt3);margin-bottom:22px}
+.auth-box input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--txt);padding:10px 14px;font-size:14px;outline:none;margin-bottom:10px}
+.auth-box input:focus{border-color:var(--acc)}
+#auth-err{font-size:12px;color:var(--bad);min-height:18px;margin-bottom:8px}
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.card-title{font-size:13px;font-weight:700;color:var(--txt);letter-spacing:.03em}
+.card-body{padding:18px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:0 14px;height:32px;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn:hover{opacity:.88}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--acc);color:#fff}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--txt2);border:1px solid var(--border)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--bad);border:1px solid rgba(239,68,68,.3)}
+.uzone{border:2px dashed var(--border);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:rgba(30,109,213,.02)}
+.uzone:hover,.uzone.drag{border-color:var(--acc);background:rgba(30,109,213,.06)}
+.uzone-icon{width:44px;height:44px;border-radius:50%;background:rgba(30,109,213,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--acc)}
+.uzone-title{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:4px}
+.uzone-sub{font-size:11px;color:var(--txt3)}
+.fc{display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:8px;margin-top:10px}
+.fc-name{font-size:13px;font-weight:600;color:var(--txt)}
+.fc-sub{font-size:11px;color:var(--txt3)}
+.pend{display:none;margin-top:10px;padding:9px 13px;background:rgba(30,109,213,.1);border:1px solid rgba(30,109,213,.35);border-radius:8px;font-size:12px;color:var(--acc);align-items:center;gap:8px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--txt3);border-bottom:1px solid var(--border);white-space:nowrap}
+th.num,td.num{text-align:right}
+td{padding:10px 12px;border-bottom:1px solid rgba(22,51,84,.5);color:var(--txt2);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.mtag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;background:rgba(30,109,213,.12);border:1px solid rgba(30,109,213,.2);border-radius:5px;font-size:11px;font-weight:600;color:var(--acc)}
+.fg{display:flex;flex-direction:column;gap:5px}
+label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--txt3)}
+input[type=number],select{background:var(--bg2);border:1px solid var(--border);border-radius:7px;color:var(--txt);padding:7px 10px;font-size:13px;outline:none}
+input[type=number]:focus,select:focus{border-color:var(--acc)}
+#tc{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:6px;z-index:500}
+.toast{padding:10px 16px;border-radius:9px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;animation:tIn .25s ease}
+.t-ok{background:rgba(22,197,94,.15);border:1px solid rgba(22,197,94,.3);color:#4ade80}
+.t-er{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#f87171}
+.t-in{background:rgba(30,109,213,.15);border:1px solid rgba(30,109,213,.3);color:#60a5fa}
+@keyframes tIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes savePulse{0%,100%{box-shadow:0 0 0 0 rgba(30,109,213,.5)}50%{box-shadow:0 0 0 6px rgba(30,109,213,0)}}
+.btn-pulse{animation:savePulse 1.4s ease-in-out infinite}
+.empty{text-align:center;padding:28px 16px;color:var(--txt3)}
+.empty-ico{font-size:28px;margin-bottom:8px}
+code{background:rgba(30,109,213,.12);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--acc)}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <div style="width:44px;height:44px;background:linear-gradient(135deg,#c6a23e,#e8c96a);border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#0b1829;margin:0 auto 14px">S</div>
+    <h2>Admin Login</h2>
+    <p>SMIB NPL Dashboard — Admin Panel</p>
+    <input type="password" id="pwd-in" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="auth-err"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;height:38px" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<div class="hd">
+  <div class="hd-logo">S</div>
+  <span class="hd-title">SMIB Admin</span>
+  <span class="hd-sub">NPL Dashboard Management</span>
+  <a class="btn btn-ghost" href="/" target="_blank" style="margin-left:auto;font-size:11px">← View Dashboard</a>
+</div>
+
+<div class="main" id="main-content" style="display:none">
+
+  <!-- Upload Report -->
+  <div class="card">
+    <div class="card-head">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span class="card-title">Upload Monthly Report</span>
+    </div>
+    <div class="card-body">
+      <div class="uzone" id="rpt-zone" onclick="document.getElementById('rpt-in').click()">
+        <input type="file" id="rpt-in" accept=".csv" style="display:none" onchange="onReportFile(event)">
+        <div class="uzone-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+        <div class="uzone-title">Drop All Loan Report CSV here or click to browse</div>
+        <div class="uzone-sub">.csv only</div>
+      </div>
+      <div class="fc" id="rpt-chip">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div style="flex:1"><div class="fc-name" id="rpt-fn">—</div><div class="fc-sub" id="rpt-fs">—</div></div>
+        <button class="btn btn-ghost" onclick="clearReport()" style="height:24px;font-size:11px;padding:0 9px">✕</button>
+      </div>
+      <div class="pend" id="rpt-pend">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        File parsed — set the period below then click <b style="margin:0 3px">Upload Report</b>.
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-top:14px;flex-wrap:wrap">
+        <div class="fg" style="flex:1;min-width:120px">
+          <label>Month</label>
+          <select id="rpt-mo">
+            <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+            <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+            <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div class="fg"><label>Year</label><input type="number" id="rpt-yr" value="2026" min="2000" max="2099" style="width:90px"></div>
+        <button class="btn btn-primary" id="rpt-btn" onclick="uploadReport()" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload Report
+        </button>
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:var(--bg2);border-radius:8px;font-size:11px;color:var(--txt3);line-height:1.8">
+        Required columns: <code>BranchName</code> <code>ProductGroup</code> <code>FINAL STAGE</code> <code>TotalPrincipal</code><br>
+        Data is <b style="color:var(--txt2)">aggregated</b> (Branch × Product × Stage → sum) before storing — raw loan records are never uploaded.
+      </div>
+    </div>
+  </div>
+
+  <!-- Stored Reports -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Stored Monthly Reports</span>
+      <span id="rpt-count" style="margin-left:auto;font-size:11px;color:var(--txt3)">—</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Period</th><th class="num">Agg. Rows</th><th class="num">Branches</th><th>Uploaded</th><th>Action</th></tr></thead>
+        <tbody id="rpt-tbody"><tr><td colspan="5"><div class="empty"><div class="empty-ico">⏳</div><div>Loading…</div></div></td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- Upload Targets -->
+  <div class="card">
+    <div class="card-head">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
+      <span class="card-title">Upload Branch NPL Targets</span>
+    </div>
+    <div class="card-body">
+      <div class="uzone" id="tgt-zone" onclick="document.getElementById('tgt-in').click()">
+        <input type="file" id="tgt-in" accept=".csv" style="display:none" onchange="onTargetFile(event)">
+        <div class="uzone-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></div>
+        <div class="uzone-title">Drop Branch NPL Targets CSV here or click to browse</div>
+        <div class="uzone-sub">.csv only</div>
+      </div>
+      <div class="fc" id="tgt-chip">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <div style="flex:1"><div class="fc-name" id="tgt-fn">—</div><div class="fc-sub" id="tgt-fs">—</div></div>
+        <button class="btn btn-ghost" onclick="clearTargets()" style="height:24px;font-size:11px;padding:0 9px">✕</button>
+      </div>
+      <div class="pend" id="tgt-pend">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        File parsed — set the year below then click <b style="margin:0 3px">Upload Targets</b>.
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-top:14px;flex-wrap:wrap">
+        <div class="fg"><label>Year</label><input type="number" id="tgt-yr" value="2026" min="2000" max="2099" style="width:90px"></div>
+        <button class="btn btn-primary" id="tgt-btn" onclick="uploadTargets()" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+          Upload Targets
+        </button>
+        <button class="btn btn-ghost" onclick="downloadTargetSample()">↓ Sample CSV</button>
+      </div>
+      <div style="margin-top:16px;overflow-x:auto;border:1px solid var(--border);border-radius:8px">
+        <table style="min-width:620px">
+          <thead><tr>
+            <th style="background:var(--bg2);color:var(--acc);border-right:1px solid var(--border)">BranchName</th>
+            <th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Jan</th><th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Feb</th>
+            <th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Mar</th><th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Apr</th>
+            <th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">May</th><th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Jun</th>
+            <th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Jul</th><th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Aug</th>
+            <th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Sep</th><th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Oct</th>
+            <th style="background:var(--bg2);text-align:center;border-right:1px solid var(--border)">Nov</th><th style="background:var(--bg2);text-align:center">Dec</th>
+          </tr></thead>
+        </table>
+      </div>
+      <div style="margin-top:7px;font-size:11px;color:var(--txt3)">Values as NPL % — e.g. <code>27.66</code> = 27.66%. <span style="color:var(--warn)">EPF.LOANS excluded from actuals.</span></div>
+    </div>
+  </div>
+
+  <!-- Stored Targets -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Stored Branch Targets</span>
+      <span id="tgt-count" style="margin-left:auto;font-size:11px;color:var(--txt3)">—</span>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Year</th><th class="num">Branches</th><th>Uploaded</th><th>Action</th></tr></thead>
+        <tbody id="tgt-tbody"><tr><td colspan="4"><div class="empty"><div class="empty-ico">⏳</div><div>Loading…</div></div></td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+</div>
+<div id="tc"></div>
+
+<script>
+const API='/.netlify/functions/get', ADMIN='/.netlify/functions/admin';
+let adminPwd='', parsedReport=null, parsedTargets=null;
+
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function periodLbl(p){if(!p)return'';const[y,m]=p.split('-');return`${MONTHS[+m-1]||m} ${y}`;}
+
+async function apiFetch(url, opts){
+  const res = await fetch(url, opts);
+  const ct  = res.headers.get('content-type')||'';
+  if(!ct.includes('application/json'))
+    throw new Error(`Functions not reachable (HTTP ${res.status}). Check deployment.`);
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error||`HTTP ${res.status}`);
+  return data;
+}
+
+async function doLogin(){
+  const pwd=document.getElementById('pwd-in').value.trim();
+  if(!pwd){document.getElementById('auth-err').textContent='Enter password';return;}
+  document.getElementById('auth-err').textContent='Verifying…';
+  try {
+    // probe: a 400 (not 401) means auth passed but action invalid — that's fine
+    const res = await fetch(`${ADMIN}?action=upload-period`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+pwd},body:JSON.stringify({period:'__probe__',rows:[]})});
+    if(res.status===401){document.getElementById('auth-err').textContent='Incorrect password';return;}
+    const ct = res.headers.get('content-type')||'';
+    if(!ct.includes('application/json')){document.getElementById('auth-err').textContent='Functions not reachable — check Netlify deployment.';return;}
+  } catch(e){document.getElementById('auth-err').textContent='Connection error: '+e.message;return;}
+  adminPwd=pwd;
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('main-content').style.display='flex';
+  loadAll();
+}
+
+function hdrs(){return{'Content-Type':'application/json','Authorization':'Bearer '+adminPwd};}
+
+async function loadAll(){
+  try{
+    const[pr,tr]=await Promise.all([
+      apiFetch(`${API}?action=periods`),
+      apiFetch(`${API}?action=targets`),
+    ]);
+    renderRptTable(pr.periods||[],pr.meta||{});
+    renderTgtTable(tr.targets||[]);
+  }catch(e){toast('Load failed: '+e.message,'er');}
+}
+
+// ── Stored reports table ──────────────────────────────────
+const storedMeta={};
+async function renderRptTable(periods,meta){
+  Object.assign(storedMeta,meta);
+  document.getElementById('rpt-count').textContent=`${periods.length} month${periods.length!==1?'s':''}`;
+  const tb=document.getElementById('rpt-tbody');
+  if(!periods.length){tb.innerHTML='<tr><td colspan="5"><div class="empty"><div class="empty-ico">📭</div><div>No reports uploaded yet</div></div></td></tr>';return;}
+  // Fetch row counts in parallel
+  const details=await Promise.all(periods.map(p=>apiFetch(`${API}?action=data&period=${p}`).then(d=>({period:p,rows:d.rows||[]}))));
+  tb.innerHTML=[...details].reverse().map(({period,rows})=>{
+    const branches=[...new Set(rows.map(r=>r.BranchName).filter(Boolean))].length;
+    const isLast=period===meta.lastPeriod;
+    const dt=isLast&&meta.lastUpload?new Date(meta.lastUpload).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+    return`<tr>
+      <td><span class="mtag">📅 ${periodLbl(period)}</span></td>
+      <td class="num">${rows.length}</td>
+      <td class="num">${branches}</td>
+      <td style="font-size:11px;color:var(--txt3)">${dt}</td>
+      <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="deleteReport('${period}')">Delete</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTgtTable(targets){
+  document.getElementById('tgt-count').textContent=`${targets.length} year${targets.length!==1?'s':''}`;
+  const tb=document.getElementById('tgt-tbody');
+  if(!targets.length){tb.innerHTML='<tr><td colspan="4"><div class="empty"><div class="empty-ico">📭</div><div>No targets uploaded yet</div></div></td></tr>';return;}
+  tb.innerHTML=[...targets].sort((a,b)=>b.year.localeCompare(a.year)).map(t=>{
+    const brs=Object.keys(t.data||{}).length;
+    const dt=new Date(t.uploadedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    return`<tr>
+      <td><span class="mtag">📅 ${t.year}</span></td>
+      <td class="num">${brs}</td>
+      <td style="font-size:11px;color:var(--txt3)">${dt}</td>
+      <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="deleteTargets('${t.year}')">Delete</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CSV parser ────────────────────────────────────────────
+function parseCSV(txt){
+  const rows=[];
+  for(const line of txt.split(/\r?\n/)){
+    if(!line.trim())continue;
+    const row=[];let cur='',q=false;
+    for(const ch of line){if(ch==='"'){q=!q;continue;}if(ch===','&&!q){row.push(cur);cur='';continue;}cur+=ch;}
+    row.push(cur);rows.push(row);
+  }
+  return rows;
+}
+
+// ── Report upload ─────────────────────────────────────────
+function onReportFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const rows=parseCSV(ev.target.result);
+    if(!rows||rows.length<2){toast('Empty or invalid CSV','er');return;}
+    const hdrs=rows[0].map(h=>h.trim());
+    const fi=(...ns)=>{for(const n of ns){const i=hdrs.findIndex(h=>h.toLowerCase().replace(/[\s_]/g,'')===n.toLowerCase().replace(/[\s_]/g,''));if(i>=0)return i;}return -1;};
+    const brC=fi('BranchName','Branch Name','BRANCH');
+    const prC=fi('ProductGroup','Product Group','PRODUCTGROUP','PRODUCT GROUP');
+    const stC=fi('FINAL STAGE','FinalStage','Stage','STAGE');
+    const amC=fi('TotalPrincipal','Total Principal','OS BALANCE','OSBALANCE','OutstandingBalance');
+    if(brC<0||prC<0||stC<0||amC<0){toast('Missing required columns. Need: BranchName, ProductGroup, FINAL STAGE, TotalPrincipal','er');return;}
+    // Aggregate
+    const agg={};
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];if(r.every(c=>!c.trim()))continue;
+      const br=(r[brC]||'').trim(),pr=(r[prC]||'').trim(),st=(r[stC]||'').trim();
+      const am=parseFloat((r[amC]||'0').replace(/,/g,''))||0;
+      if(!br||!st)continue;
+      const k=`${br}||${pr}||${st}`;
+      if(!agg[k])agg[k]={BranchName:br,ProductGroup:pr,'FINAL STAGE':st,TotalPrincipal:0};
+      agg[k].TotalPrincipal+=am;
+    }
+    parsedReport=Object.values(agg);
+    if(!parsedReport.length){toast('No valid rows found','er');return;}
+    document.getElementById('rpt-chip').style.display='flex';
+    document.getElementById('rpt-fn').textContent=file.name;
+    document.getElementById('rpt-fs').textContent=`${parsedReport.length} aggregated rows (from ${rows.length-1} records)`;
+    document.getElementById('rpt-pend').style.display='flex';
+    const btn=document.getElementById('rpt-btn');btn.disabled=false;btn.classList.add('btn-pulse');
+    const m=file.name.match(/(\d{4})[_\-]?(\d{2})/);
+    if(m){document.getElementById('rpt-yr').value=m[1];document.getElementById('rpt-mo').value=m[2];}
+    toast(`Parsed → ${parsedReport.length} aggregated rows`,'ok');
+  };
+  reader.readAsText(file);
+}
+function clearReport(){
+  parsedReport=null;
+  document.getElementById('rpt-chip').style.display='none';
+  document.getElementById('rpt-pend').style.display='none';
+  document.getElementById('rpt-in').value='';
+  const btn=document.getElementById('rpt-btn');btn.disabled=true;btn.classList.remove('btn-pulse');
+}
+async function uploadReport(){
+  if(!parsedReport){toast('No file parsed','er');return;}
+  const mo=document.getElementById('rpt-mo').value,yr=document.getElementById('rpt-yr').value;
+  const period=`${yr}-${mo}`;
+  const btn=document.getElementById('rpt-btn');
+  btn.disabled=true;btn.classList.remove('btn-pulse');btn.textContent='Uploading…';
+  try{
+    const d=await apiFetch(`${ADMIN}?action=upload-period`,{method:'POST',headers:hdrs(),body:JSON.stringify({period,rows:parsedReport})});
+    toast(`${periodLbl(period)} uploaded (${d.count} rows)`,'ok');
+    clearReport();loadAll();
+  }catch(e){toast('Upload failed: '+e.message,'er');}
+  finally{btn.textContent='Upload Report';}
+}
+async function deleteReport(period){
+  if(!confirm(`Delete report for ${periodLbl(period)}? Users will lose access to this month.`))return;
+  try{await apiFetch(`${ADMIN}?action=delete-period`,{method:'POST',headers:hdrs(),body:JSON.stringify({period})});toast(`${periodLbl(period)} deleted`,'in');loadAll();}catch(e){toast('Delete failed: '+e.message,'er');}
+}
+
+// ── Targets upload ────────────────────────────────────────
+const TMO={};
+['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].forEach((m,i)=>TMO[m]=i);
+['january','february','march','april','may','june','july','august','september','october','november','december'].forEach((m,i)=>TMO[m]=i);
+['1','2','3','4','5','6','7','8','9','10','11','12'].forEach((m,i)=>TMO[m]=i);
+['01','02','03','04','05','06','07','08','09','10','11','12'].forEach((m,i)=>TMO[m]=i);
+
+function onTargetFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const rows=parseCSV(ev.target.result);
+    if(!rows||rows.length<2){toast('Empty or invalid CSV','er');return;}
+    const headers=rows[0].map(h=>h.trim());
+    const brCol=headers.findIndex(h=>h.toLowerCase()==='branchname');
+    if(brCol<0){toast('Missing BranchName column','er');return;}
+    const moMap={};headers.forEach((h,ci)=>{const k=h.trim().toLowerCase();if(k in TMO)moMap[TMO[k]]=ci;});
+    if(Object.keys(moMap).length<12){toast(`Only ${Object.keys(moMap).length}/12 month columns found`,'er');return;}
+    const data={};
+    for(let i=1;i<rows.length;i++){
+      const r=rows[i];if(r.every(c=>!c.trim()))continue;
+      const br=(r[brCol]||'').trim();if(!br)continue;
+      data[br]=Array.from({length:12},(_,mi)=>{
+        const ci=moMap[mi];if(ci===undefined)return 0;
+        const raw=parseFloat((r[ci]||'0').replace(/,/g,''));
+        return isNaN(raw)?0:raw>1?raw/100:raw;
+      });
+    }
+    parsedTargets={data,branches:Object.keys(data)};
+    if(!parsedTargets.branches.length){toast('No valid branch rows','er');return;}
+    document.getElementById('tgt-chip').style.display='flex';
+    document.getElementById('tgt-fn').textContent=file.name;
+    document.getElementById('tgt-fs').textContent=`${parsedTargets.branches.length} branches parsed`;
+    document.getElementById('tgt-pend').style.display='flex';
+    const btn=document.getElementById('tgt-btn');btn.disabled=false;btn.classList.add('btn-pulse');
+    toast(`Loaded targets for ${parsedTargets.branches.length} branches`,'ok');
+  };
+  reader.readAsText(file);
+}
+function clearTargets(){
+  parsedTargets=null;
+  document.getElementById('tgt-chip').style.display='none';
+  document.getElementById('tgt-pend').style.display='none';
+  document.getElementById('tgt-in').value='';
+  const btn=document.getElementById('tgt-btn');btn.disabled=true;btn.classList.remove('btn-pulse');
+}
+async function uploadTargets(){
+  if(!parsedTargets){toast('No file parsed','er');return;}
+  const yr=String(document.getElementById('tgt-yr').value);
+  const btn=document.getElementById('tgt-btn');btn.disabled=true;btn.classList.remove('btn-pulse');btn.textContent='Uploading…';
+  try{
+    const d=await apiFetch(`${ADMIN}?action=upload-targets`,{method:'POST',headers:hdrs(),body:JSON.stringify({year:yr,data:parsedTargets.data,uploadedAt:new Date().toISOString()})});
+    toast(`Targets for ${yr} uploaded`,'ok');
+    clearTargets();loadAll();
+  }catch(e){toast('Upload failed: '+e.message,'er');}
+  finally{btn.textContent='Upload Targets';}
+}
+async function deleteTargets(year){
+  if(!confirm(`Delete all branch targets for ${year}?`))return;
+  try{await apiFetch(`${ADMIN}?action=delete-targets`,{method:'POST',headers:hdrs(),body:JSON.stringify({year})});toast(`Targets for ${year} deleted`,'in');loadAll();}catch(e){toast('Delete failed: '+e.message,'er');}
+}
+function downloadTargetSample(){
+  const d=[['Ambalanthota',[27.66,26.90,26.15,25.39,24.63,23.87,23.11,22.36,21.60,20.84,20.08,19.33]],['Ampara',[12.45,12.19,11.92,11.66,11.39,11.13,10.86,10.60,10.33,10.07,9.80,9.54]],['Kandy',[18.01,17.63,17.25,16.86,16.48,16.10,15.71,15.33,14.95,14.56,14.18,13.80]]];
+  const h='BranchName,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
+  const rows=d.map(([b,v])=>`${b},${v.map(x=>x.toFixed(2)).join(',')}`);
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([[h,...rows].join('\n')],{type:'text/csv'})),download:'branch_npl_targets_sample.csv'});
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(msg,type='in'){
+  const t=document.createElement('div');t.className=`toast t-${type}`;
+  t.innerHTML=`<span>${type==='ok'?'✓':type==='er'?'✕':'ℹ'}</span>${msg}`;
+  document.getElementById('tc').appendChild(t);setTimeout(()=>t.remove(),3400);
+}
+
+// ── Drag & drop ───────────────────────────────────────────
+[['rpt-zone',onReportFile],['tgt-zone',onTargetFile]].forEach(([zid,fn])=>{
+  const uz=document.getElementById(zid);
+  uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag');});
+  uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+  uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)fn({target:{files:[f]}});});
+});
+</script>
+</body>
+</html>

@@ -46,6 +46,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg0);color:var(--txt);min
 .nav-item:hover{background:var(--acc-glow);color:var(--txt)}
 .nav-item.active{background:var(--acc-glow2);color:var(--acc);border-color:rgba(30,109,213,.28)}
 .nav-item svg{width:17px;height:17px;flex-shrink:0}
+.nav-sub{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 20px;border-radius:6px;cursor:pointer;color:var(--txt3);font-size:12px;font-weight:500;transition:all .15s}
+.nav-sub:hover{background:var(--acc-glow);color:var(--txt2)}
+.nav-sub svg{width:13px;height:13px;flex-shrink:0}
 .nav-badge{margin-left:auto;background:var(--acc);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;min-width:18px;text-align:center}
 .sb-foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);font-size:10px;color:var(--txt3);line-height:1.6}
 
@@ -278,6 +281,35 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
       Dashboard
     </div>
+  </div>
+  <div class="sb-section" id="sb-sections" style="display:none">Analytics</div>
+  <div class="nav" id="sb-sections-nav" style="display:none">
+    <div class="nav-sub" onclick="scrollToSection('sec-overview')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Overview
+    </div>
+    <div class="nav-sub" onclick="scrollToSection('sec-stage')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      Stage Analysis
+    </div>
+    <div class="nav-sub" onclick="scrollToSection('sec-trend')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Monthly Trend
+    </div>
+    <div class="nav-sub" onclick="scrollToSection('sec-cmp')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Comparison
+    </div>
+    <div class="nav-sub" onclick="scrollToSection('sec-movement')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Stage Movement
+    </div>
+    <div class="nav-sub" onclick="scrollToSection('sec-breakdown')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+      Stage Breakdown
+    </div>
+  </div>
+  <div class="nav">
     <div class="nav-item" id="nav-settings" onclick="showPage('settings',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
       Settings
@@ -356,6 +388,8 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   </div>
 
     <!-- Branch NPL Summary -->
+    <div id="sec-overview"></div>
+    <div id="sec-stage"></div>
     <div class="card">
       <div class="card-head">
         <span class="card-title">Branch Wise NPL Summary</span>
@@ -409,6 +443,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     </div>
 
     <!-- NPL Comparison -->
+    <div id="sec-cmp"></div>
     <div class="card">
       <div class="card-head">
         <span class="card-title">NPL Comparison</span>
@@ -433,6 +468,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     </div>
 
     <!-- Stage Movement -->
+    <div id="sec-movement"></div>
     <div class="card">
       <div class="card-head">
         <span class="card-title">Stage Movement</span>
@@ -457,6 +493,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
     </div>
 
     <!-- Monthly Trend -->
+    <div id="sec-trend"></div>
     <div class="card">
       <div class="card-head">
         <span class="card-title">Monthly Trend</span>
@@ -471,6 +508,28 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         </div>
       </div>
       <div class="chart-wrap"><div class="chart-box"><canvas id="trend-canvas"></canvas></div></div>
+    </div>
+
+    <!-- Stage Breakdown by Branch -->
+    <div id="sec-breakdown"></div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Stage Breakdown by Branch</span>
+        <div class="card-ctrls">
+          <div class="fg"><label>Month</label><select id="sb-mo" onchange="renderStageBreakdown()"><option value="">— Select —</option></select></div>
+          <div class="fg"><label>Product</label><div id="sb-pr-ms" class="ms-wrap"></div></div>
+          <button class="btn btn-ghost" onclick="exportExcel('sb-tbody','Stage_Breakdown')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2m-2 4h8m-4-4h4"/></svg>
+            Export CSV
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="tbl-wrap"><table>
+          <thead id="sb-head"></thead>
+          <tbody id="sb-tbody"></tbody>
+        </table></div>
+      </div>
     </div>
 
   </div><!-- /dash-content -->
@@ -860,9 +919,16 @@ function showPage(name, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   el.classList.add('active');
+  const isDash = name === 'dashboard';
+  document.getElementById('sb-sections').style.display    = isDash ? 'block' : 'none';
+  document.getElementById('sb-sections-nav').style.display = isDash ? 'block' : 'none';
   const map = {dashboard:['Dashboard','NPL Analytics Overview'],settings:['Settings','Data Status & Branch Targets']};
   document.getElementById('pg-title').textContent = map[name][0];
   document.getElementById('pg-sub').textContent   = map[name][1];
+}
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 // ════════════════════════════════════════════════
@@ -957,6 +1023,7 @@ function reload() {
   renderProduct();
   renderCmp();
   renderMovement();
+  renderStageBreakdown();
   renderChart();
   renderMiniCharts();
 }
@@ -980,6 +1047,7 @@ function refreshDropdowns() {
 
   setOpts('b-mo',  pOpts, '— Select —');
   setOpts('p-mo',  pOpts, '— Select —');
+  setOpts('sb-mo', pOpts, '— Select —');
   setOpts('p-br',  bOpts, 'All Branches');
   setOpts('cmp-m1',pOpts, '— Select —');
   setOpts('cmp-m2',pOpts, '— Select —');
@@ -993,6 +1061,7 @@ function refreshDropdowns() {
   populateMs('b-pr-ms',  products);
   populateMs('cmp-pr-ms',products);
   populateMs('mv-pr-ms', products);
+  populateMs('sb-pr-ms', products);
   populateMs('ch-pr-ms', products);
 
   // Popup dropdowns
@@ -1017,7 +1086,7 @@ function refreshDropdowns() {
   // Auto-select sensible defaults
   if (periods.length>=1) {
     const L=periods[periods.length-1];
-    ['b-mo','p-mo','cmp-m2','mv-m2','sw-mo','pc-mo'].forEach(id=>{ const s=document.getElementById(id); if(s&&!s.value)s.value=L; });
+    ['b-mo','p-mo','sb-mo','cmp-m2','mv-m2','sw-mo','pc-mo'].forEach(id=>{ const s=document.getElementById(id); if(s&&!s.value)s.value=L; });
   }
   if (periods.length>=2) {
     const P=periods[periods.length-2];
@@ -1296,104 +1365,205 @@ function renderCmpTable(tbId, key, m1, m2, br, COLS) {
 }
 
 // ════════════════════════════════════════════════
-//  STAGE MOVEMENT
+//  STAGE MOVEMENT  (works with aggregated data)
 // ════════════════════════════════════════════════
 function renderMovement() {
-  const m1=document.getElementById('mv-m1').value;
-  const m2=document.getElementById('mv-m2').value;
-  const br=document.getElementById('mv-br').value;
-  const tb=document.getElementById('mv-tbody');
+  const m1  = document.getElementById('mv-m1').value;
+  const m2  = document.getElementById('mv-m2').value;
+  const br  = document.getElementById('mv-br').value;
+  const tb  = document.getElementById('mv-tbody');
 
-  if(!m1||!m2){tb.innerHTML=emptyRow(5,'Select two months to compare');return;}
+  if (!m1 || !m2) { tb.innerHTML = emptyRow(5,'Select two months to compare'); return; }
+  if (m1 === m2)  { tb.innerHTML = emptyRow(5,'Select two different months');   return; }
 
-  const d1=getDataMs(m1,br,'mv-pr-ms'), d2=getDataMs(m2,br,'mv-pr-ms');
-  const map1={}, map2={};
-  d1.forEach(r=>map1[r.ArrangementNo]=r);
-  d2.forEach(r=>map2[r.ArrangementNo]=r);
+  const d1 = getDataMs(m1, br||null, 'mv-pr-ms');
+  const d2 = getDataMs(m2, br||null, 'mv-pr-ms');
 
-  const allArrs=[...new Set([...Object.keys(map1),...Object.keys(map2)])];
-  const moves={};
-
-  allArrs.forEach(arr=>{
-    const r1=map1[arr], r2=map2[arr];
-    let from, to;
-    if(r1&&r2){
-      from=stageGroup(r1['FINAL STAGE']); to=stageGroup(r2['FINAL STAGE']);
-      if(from===to) return;
-    } else if(r1&&!r2){ from=stageGroup(r1['FINAL STAGE']); to='SETTLED/CONVERTED'; }
-    else { from='NEW LOAN'; to=stageGroup(r2['FINAL STAGE']); }
-
-    const key=`${from} → ${to}`;
-    if(!moves[key]) moves[key]={from,to,loans:[]};
-    moves[key].loans.push({r1,r2,row:r1||r2});
-  });
-
-  if(!Object.keys(moves).length){tb.innerHTML=emptyRow(5,'No stage changes between selected months');return;}
-
-  const ORDER=['NEW LOAN → STAGE1','NEW LOAN → STAGE2','NEW LOAN → STAGE3',
-    'STAGE1 → STAGE2','STAGE1 → STAGE3','STAGE2 → STAGE3',
-    'STAGE3 → STAGE2','STAGE3 → STAGE1','STAGE2 → STAGE1',
-    'STAGE1 → SETTLED/CONVERTED','STAGE2 → SETTLED/CONVERTED','STAGE3 → SETTLED/CONVERTED'];
-
-  const keys=Object.keys(moves).sort((a,b)=>{
-    const ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);
-    if(ia===-1&&ib===-1)return a.localeCompare(b);
-    return (ia===-1?999:ia)-(ib===-1?999:ib);
-  });
-
-  const dirInfo=key=>{
-    if(key.includes('NEW LOAN')) return {lbl:'🆕 New Entry',cls:'b-new'};
-    if(key.includes('SETTLED'))  return {lbl:'✅ Exited',cls:'b-out'};
-    const [f,t]=key.split(' → ');
-    const fn=parseInt(f.replace('STAGE','')),tn=parseInt(t.replace('STAGE',''));
-    if(tn>fn) return {lbl:'📉 Downgrade',cls:'b-s3'};
-    if(tn<fn) return {lbl:'📈 Upgrade',cls:'b-s1'};
-    return {lbl:'—',cls:'b-s2'};
+  // Build stage-totals map: key = "BranchName||ProductGroup"
+  const buildMap = (rows) => {
+    const m = {};
+    rows.forEach(r => {
+      const key = `${r.BranchName}||${r.ProductGroup}`;
+      if (!m[key]) m[key] = { branch: r.BranchName, product: r.ProductGroup, stages: {} };
+      const s = (r['FINAL STAGE'] || '').trim().toUpperCase();
+      m[key].stages[s] = (m[key].stages[s] || 0) + r.TotalPrincipal;
+    });
+    return m;
   };
 
-  let html='';
-  keys.forEach((key,i)=>{
-    const mv=moves[key];
-    const bpo=mv.loans.reduce((s,l)=>s+l.row.TotalPrincipal,0);
-    const di=dirInfo(key);
-    const rid=`mv${i}`;
-    html+=`<tr class="mv-row" onclick="toggleMv('${rid}',this)">
-      <td><span class="mv-toggle" id="t${rid}">▶</span></td>
-      <td style="font-weight:600">${key}</td>
-      <td class="num">${mv.loans.length}</td>
-      <td class="num" style="color:var(--warn)">${fmtM(bpo)}</td>
-      <td><span class="badge ${di.cls}">${di.lbl}</span></td>
-    </tr>
-    <tr class="mv-detail" id="${rid}" style="display:none"><td colspan="5">
-      <div class="mv-inner">
-        <table><thead><tr>
-          <th>Arrangement No</th><th>Customer</th><th>Branch</th><th>Product</th>
-          <th class="num">BPO (M)</th>
-          <th>${periodLbl(m1)} Stage</th><th>${periodLbl(m2)} Stage</th>
-        </tr></thead><tbody>
-        ${mv.loans.map(l=>{
-          const sg1=l.r1?.['FINAL STAGE']||'—', sg2=l.r2?.['FINAL STAGE']||'—';
-          const gc=s=>s.startsWith('STAGE1')?'b-s1':s.startsWith('STAGE2')?'b-s2':s.startsWith('STAGE3')?'b-s3':'b-out';
-          return `<tr>
-            <td>${l.row.ArrangementNo}</td>
-            <td>${l.row.CustomerName||'—'}</td>
-            <td>${l.row.BranchName||'—'}</td>
-            <td>${l.row.ProductGroup||'—'}</td>
-            <td class="num">${fmtM(l.row.TotalPrincipal)}</td>
-            <td><span class="badge ${gc(sg1)}">${sg1}</span></td>
-            <td><span class="badge ${gc(sg2)}">${sg2}</span></td>
-          </tr>`;
-        }).join('')}
-        </tbody></table>
-      </div>
-    </td></tr>`;
+  const map1 = buildMap(d1);
+  const map2 = buildMap(d2);
+  const allKeys = [...new Set([...Object.keys(map1), ...Object.keys(map2)])];
+
+  // Classify each entity's net stage movement
+  const moves = { upgrade: [], downgrade: [], stable: [], newEntry: [], exited: [] };
+
+  allKeys.forEach(key => {
+    const e1 = map1[key], e2 = map2[key];
+    const branch   = (e1 || e2).branch;
+    const product  = (e1 || e2).product;
+
+    if (!e1) {
+      const bpo = Object.values(e2.stages).reduce((s,v)=>s+v, 0);
+      moves.newEntry.push({ branch, product, bpo });
+      return;
+    }
+    if (!e2) {
+      const bpo = Object.values(e1.stages).reduce((s,v)=>s+v, 0);
+      moves.exited.push({ branch, product, bpo });
+      return;
+    }
+
+    // Compare S3 BPO between periods
+    const s3Sum = (stages) => Object.entries(stages)
+      .filter(([s]) => s.startsWith('STAGE3') || s.startsWith('3'))
+      .reduce((t,[,v]) => t+v, 0);
+    const totSum = (stages) => Object.values(stages).reduce((t,v) => t+v, 0);
+
+    const s3b1 = s3Sum(e1.stages), tot1 = totSum(e1.stages);
+    const s3b2 = s3Sum(e2.stages), tot2 = totSum(e2.stages);
+    const pct1 = tot1 > 0 ? (s3b1/tot1)*100 : 0;
+    const pct2 = tot2 > 0 ? (s3b2/tot2)*100 : 0;
+    const dPct = pct2 - pct1;
+    const dBpo = s3b2 - s3b1;
+
+    if (Math.abs(dPct) < 0.01 && Math.abs(dBpo) < 1) {
+      moves.stable.push({ branch, product, pct1, pct2, dPct, dBpo });
+    } else if (dPct > 0) {
+      moves.downgrade.push({ branch, product, pct1, pct2, dPct, dBpo });
+    } else {
+      moves.upgrade.push({ branch, product, pct1, pct2, dPct, dBpo });
+    }
   });
-  tb.innerHTML=html;
+
+  const l1 = periodLbl(m1), l2 = periodLbl(m2);
+
+  const mkSection = (label, cls, badge, rows, showPct) => {
+    if (!rows.length) return '';
+    const sortedRows = [...rows].sort((a,b) => Math.abs(b.dPct||0) - Math.abs(a.dPct||0));
+    const rowHtml = sortedRows.map(r => `<tr>
+      <td style="white-space:nowrap;font-weight:600">${r.branch}</td>
+      <td style="font-size:11px;color:var(--txt3)">${r.product||'—'}</td>
+      ${showPct ? `
+      <td class="num">${fmtPct(r.pct1)}</td>
+      <td class="num">${fmtPct(r.pct2)}</td>
+      <td class="num"><span style="font-weight:700;color:${r.dPct>0?'var(--bad)':'var(--ok)'}">${r.dPct>0?'▲':'▼'} ${Math.abs(r.dPct).toFixed(2)}%</span></td>
+      <td class="num"><span style="color:${r.dBpo>0?'var(--bad)':'var(--ok)'};font-size:11px">${r.dBpo>0?'+':''}${fmtM(r.dBpo)}</span></td>
+      ` : `<td class="num" colspan="4" style="color:var(--txt3)">${fmtM(r.bpo||0)}</td>`}
+    </tr>`).join('');
+    return `<tr style="background:var(--bg2)">
+      <td colspan="6" style="padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">
+        <span class="badge ${cls}" style="margin-right:8px">${badge}</span>
+        ${label} <span style="color:var(--txt3);font-weight:400;margin-left:4px">(${rows.length} branch-products)</span>
+      </td>
+    </tr>
+    <tr style="background:var(--bg2)"><td colspan="6" style="padding:0 12px 6px"><table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Branch</th>
+        <th style="text-align:left;padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Product</th>
+        ${showPct ? `
+        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">${l1} S3%</th>
+        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">${l2} S3%</th>
+        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Δ S3%</th>
+        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Δ S3 BPO</th>
+        ` : `<th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase" colspan="4">BPO</th>`}
+      </tr></thead>
+      <tbody>${rowHtml}</tbody>
+    </table></td></tr>`;
+  };
+
+  const total = moves.downgrade.length + moves.upgrade.length + moves.stable.length + moves.newEntry.length + moves.exited.length;
+  if (!total) { tb.innerHTML = emptyRow(5, 'No data for selected filters'); return; }
+
+  tb.innerHTML =
+    mkSection(`Downgraded — NPL increased (${l1} → ${l2})`, 'b-s3', '📉 Downgrade', moves.downgrade, true) +
+    mkSection(`Upgraded — NPL improved (${l1} → ${l2})`,    'b-s1', '📈 Upgrade',   moves.upgrade,   true) +
+    mkSection('No significant change',                        'b-s2', '➡ Stable',     moves.stable,    true) +
+    mkSection('New entries (not in '+ l1 +')',                'b-new','🆕 New',        moves.newEntry,  false) +
+    mkSection('Exited (not in '+ l2 +')',                     'b-out','✅ Exited',      moves.exited,    false);
+}
+
+// ════════════════════════════════════════════════
+//  STAGE BREAKDOWN TABLE
+// ════════════════════════════════════════════════
+function renderStageBreakdown() {
+  const mo = document.getElementById('sb-mo').value;
+  const head = document.getElementById('sb-head');
+  const tb   = document.getElementById('sb-tbody');
+
+  if (!mo) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'Select a month'); return; }
+
+  const data = getDataMs(mo, null, 'sb-pr-ms');
+  if (!data.length) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'No data for selection'); return; }
+
+  // Collect all unique stages, sorted
+  const stageOrder = ['STAGE1A','STAGE1B','STAGE2A','STAGE2B','STAGE3A','STAGE3B','STAGE3C','STAGE3D'];
+  const allStages = [...new Set(data.map(r=>(r['FINAL STAGE']||'').trim().toUpperCase()))]
+    .filter(Boolean)
+    .sort((a,b) => {
+      const ia = stageOrder.indexOf(a), ib = stageOrder.indexOf(b);
+      if (ia>=0 && ib>=0) return ia-ib;
+      if (ia>=0) return -1; if (ib>=0) return 1;
+      return a.localeCompare(b);
+    });
+
+  // Group by branch → stage → sum TotalPrincipal
+  const byBranch = {};
+  data.forEach(r => {
+    const br = r.BranchName || 'Unknown';
+    const st = (r['FINAL STAGE']||'').trim().toUpperCase();
+    if (!byBranch[br]) byBranch[br] = {};
+    byBranch[br][st] = (byBranch[br][st] || 0) + r.TotalPrincipal;
+  });
+
+  const branches = Object.keys(byBranch).sort();
+
+  // Header
+  head.innerHTML = `<tr>
+    <th onclick="sortCol(this,'sb-tbody',0)" style="white-space:nowrap">Branch<span class="si"></span></th>
+    ${allStages.map((s,i)=>`<th class="num" onclick="sortCol(this,'sb-tbody',${i+1})" style="white-space:nowrap">${s}<span class="si"></span></th>`).join('')}
+    <th class="num" onclick="sortCol(this,'sb-tbody',${allStages.length+1})">Total<span class="si"></span></th>
+  </tr>`;
+
+  // Stage column totals
+  const stageTotals = {};
+  allStages.forEach(s => stageTotals[s] = 0);
+  let grandTotal = 0;
+
+  const rowsHtml = branches.map(br => {
+    const stages = byBranch[br];
+    const total  = Object.values(stages).reduce((s,v)=>s+v,0);
+    grandTotal  += total;
+    const cells  = allStages.map(s => {
+      const v = stages[s] || 0;
+      stageTotals[s] += v;
+      const stCls = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
+      return `<td class="num" style="${stCls}">${v>0?fmtM(v):'—'}</td>`;
+    }).join('');
+    return `<tr>
+      <td style="font-weight:600;white-space:nowrap">${br}</td>
+      ${cells}
+      <td class="num" style="font-weight:700">${fmtM(total)}</td>
+    </tr>`;
+  }).join('');
+
+  // Total row
+  const totalCells = allStages.map(s => {
+    const v = stageTotals[s];
+    const stCls = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
+    return `<td class="num" style="${stCls};font-weight:700">${v>0?fmtM(v):'—'}</td>`;
+  }).join('');
+
+  tb.innerHTML = rowsHtml + `<tr class="total-row">
+    <td>TOTAL</td>${totalCells}
+    <td class="num" style="font-weight:700">${fmtM(grandTotal)}</td>
+  </tr>`;
 }
 
 function toggleMv(id, row) {
   const el=document.getElementById(id);
   const tog=document.getElementById('t'+id);
+  if(!el||!tog)return;
   const open=el.style.display==='table-row';
   el.style.display=open?'none':'table-row';
   tog.classList.toggle('open',!open);
@@ -1550,7 +1720,11 @@ function sortCol(th, tbodyId, colIdx) {
   rows.sort((a,b)=>{
     const av=a.cells[colIdx]?.textContent.trim()||'';
     const bv=b.cells[colIdx]?.textContent.trim()||'';
-    const an=parseFloat(av.replace(/[^0-9.\-]/g,'')),bn=parseFloat(bv.replace(/[^0-9.\-]/g,''));
+    // Handle ▲/▼ delta cells — ▼ means negative change
+    const aSign=av.includes('▼')?-1:1;
+    const bSign=bv.includes('▼')?-1:1;
+    const an=parseFloat(av.replace(/[^0-9.]/g,''))*aSign;
+    const bn=parseFloat(bv.replace(/[^0-9.]/g,''))*bSign;
     if(!isNaN(an)&&!isNaN(bn)) return (an-bn)*dir;
     return av.localeCompare(bv)*dir;
   });
@@ -2186,11 +2360,15 @@ function renderMiniCharts(){
   buildMultiSelect('b-pr-ms',  renderBranch);
   buildMultiSelect('cmp-pr-ms',renderCmp);
   buildMultiSelect('mv-pr-ms', renderMovement);
+  buildMultiSelect('sb-pr-ms', renderStageBreakdown);
   buildMultiSelect('ch-pr-ms', renderChart);
   buildMultiSelect('sw-pr-ms', renderStageWise);
   buildMultiSelect('nm-pr-ms', renderNPLMovement);
 
   await initDashboard();
+  // Dashboard is active by default — show section nav
+  document.getElementById('sb-sections').style.display     = 'block';
+  document.getElementById('sb-sections-nav').style.display = 'block';
 })();
 </script>
 </body>

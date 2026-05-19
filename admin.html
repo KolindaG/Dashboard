@@ -139,7 +139,7 @@ input[type=number]:focus,select:focus{border-color:var(--acc)}
     </div>
     <div class="card-body" style="padding:0">
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Period</th><th class="num">Agg. Rows</th><th class="num">Branches</th><th>Uploaded</th><th>Action</th></tr></thead>
+        <thead><tr><th>Period</th><th>Uploaded</th><th>Action</th></tr></thead>
         <tbody id="rpt-tbody"><tr><td colspan="5"><div class="empty"><div class="empty-ico">⏳</div><div>Loading…</div></div></td></tr></tbody>
       </table></div>
     </div>
@@ -257,22 +257,15 @@ async function loadAll(){
 }
 
 // ── Stored reports table ──────────────────────────────────
-const storedMeta={};
-async function renderRptTable(periods,meta){
-  Object.assign(storedMeta,meta);
+function renderRptTable(periods, meta){
   document.getElementById('rpt-count').textContent=`${periods.length} month${periods.length!==1?'s':''}`;
   const tb=document.getElementById('rpt-tbody');
-  if(!periods.length){tb.innerHTML='<tr><td colspan="5"><div class="empty"><div class="empty-ico">📭</div><div>No reports uploaded yet</div></div></td></tr>';return;}
-  // Fetch row counts in parallel
-  const details=await Promise.all(periods.map(p=>apiFetch(`${API}?action=data&period=${p}`).then(d=>({period:p,rows:d.rows||[]}))));
-  tb.innerHTML=[...details].reverse().map(({period,rows})=>{
-    const branches=[...new Set(rows.map(r=>r.BranchName).filter(Boolean))].length;
+  if(!periods.length){tb.innerHTML='<tr><td colspan="3"><div class="empty"><div class="empty-ico">📭</div><div>No reports uploaded yet</div></div></td></tr>';return;}
+  tb.innerHTML=[...periods].reverse().map(period=>{
     const isLast=period===meta.lastPeriod;
     const dt=isLast&&meta.lastUpload?new Date(meta.lastUpload).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
     return`<tr>
       <td><span class="mtag">📅 ${periodLbl(period)}</span></td>
-      <td class="num">${rows.length}</td>
-      <td class="num">${branches}</td>
       <td style="font-size:11px;color:var(--txt3)">${dt}</td>
       <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="confirmDeleteReport('${period}',this)">Delete</button></td>
     </tr>`;
@@ -383,7 +376,8 @@ async function doDeleteReport(period, btn) {
   try {
     await apiFetch(`${ADMIN}?action=delete-period`, {method:'POST', headers:hdrs(), body:JSON.stringify({period})});
     toast(`${periodLbl(period)} deleted`, 'in');
-    loadAll();
+    btn.closest('.confirm-row').remove();
+    setTimeout(loadAll, 1500); // wait for Netlify Blobs to propagate
   } catch(e) { toast('Delete failed: ' + e.message, 'er'); btn.closest('.confirm-row').remove(); }
 }
 
@@ -461,7 +455,8 @@ async function doDeleteTargets(year, btn) {
   try {
     await apiFetch(`${ADMIN}?action=delete-targets`, {method:'POST', headers:hdrs(), body:JSON.stringify({year})});
     toast(`Targets for ${year} deleted`, 'in');
-    loadAll();
+    btn.closest('.confirm-row').remove();
+    setTimeout(loadAll, 1500);
   } catch(e) { toast('Delete failed: ' + e.message, 'er'); btn.closest('.confirm-row').remove(); }
 }
 function downloadTargetSample(){

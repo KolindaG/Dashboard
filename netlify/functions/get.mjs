@@ -22,6 +22,32 @@ export default async (req) => {
   const store = getStore("smib");
 
   try {
+    // ── All periods + targets in one call (used by dashboard on load) ──
+    if (action === "all") {
+      const { blobs: rBlobs } = await store.list({ prefix: "report/" });
+      const { blobs: tBlobs } = await store.list({ prefix: "targets/" });
+      const periods = rBlobs
+        .map((b) => b.key.replace("report/", ""))
+        .filter((p) => !p.startsWith("__"))
+        .sort();
+      const [allRows, allTargets, meta] = await Promise.all([
+        Promise.all(periods.map((p) =>
+          store.get(`report/${p}`, { type: "json" })
+            .then((rows) => ({ period: p, data: rows || [] }))
+            .catch(() => ({ period: p, data: [] }))
+        )),
+        Promise.all(tBlobs.map((b) =>
+          store.get(b.key, { type: "json" }).catch(() => null)
+        )),
+        store.get("meta", { type: "json" }).catch(() => null),
+      ]);
+      return Response.json({
+        reports: allRows,
+        targets: allTargets.filter(Boolean),
+        meta: meta || {},
+      }, { headers: cors });
+    }
+
     // ── List available report periods ─────────────────────────────
     if (action === "periods") {
       const { blobs } = await store.list({ prefix: "report/" });

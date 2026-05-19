@@ -155,6 +155,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ms-actions button{flex:1;padding:4px;background:transparent;border:1px solid var(--border);color:var(--txt2);border-radius:4px;font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif}
 .ms-actions button:hover{background:var(--acc-glow);color:var(--txt)}
 
+@keyframes spin{to{transform:rotate(360deg)}}
 /* ── SAVE PULSE ── */
 @keyframes savePulse{0%,100%{box-shadow:0 0 0 0 rgba(30,109,213,.5)}50%{box-shadow:0 0 0 6px rgba(30,109,213,0)}}
 .btn-pulse{animation:savePulse 1.4s ease-in-out infinite}
@@ -319,6 +320,13 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
   <!-- ═══ DASHBOARD PAGE ═══ -->
   <div id="page-dashboard" class="page active">
 
+  <!-- Loading / Error overlay -->
+  <div id="dash-overlay" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:16px">
+    <div id="dash-spinner" style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite"></div>
+    <div id="dash-msg" style="font-size:14px;color:var(--txt3)">Connecting to dashboard…</div>
+  </div>
+  <!-- Dashboard content (hidden until data loads) -->
+  <div id="dash-content" style="display:none">
   <!-- ── CHART CARDS ROW (Mini Chart Preview) ── -->
   <div class="chart-cards-row">
     <div class="ccard" onclick="openCPop('stage')">
@@ -465,6 +473,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
       <div class="chart-wrap"><div class="chart-box"><canvas id="trend-canvas"></canvas></div></div>
     </div>
 
+  </div><!-- /dash-content -->
   </div><!-- /dashboard -->
 
   <!-- ═══ SETTINGS PAGE ═══ -->
@@ -886,40 +895,42 @@ function closeModal(){ document.getElementById('modal-ov').classList.remove('ope
 // ════════════════════════════════════════════════
 //  INIT — fetch all data from Netlify on load
 // ════════════════════════════════════════════════
+function showDashOverlay(msg, isError=false) {
+  document.getElementById('dash-overlay').style.display = 'flex';
+  document.getElementById('dash-content').style.display  = 'none';
+  document.getElementById('dash-spinner').style.display  = isError ? 'none' : 'block';
+  document.getElementById('dash-msg').style.color = isError ? 'var(--bad)' : 'var(--txt3)';
+  document.getElementById('dash-msg').textContent = msg;
+}
+function showDashContent() {
+  document.getElementById('dash-overlay').style.display = 'none';
+  document.getElementById('dash-content').style.display  = 'block';
+}
+
 async function initDashboard() {
+  showDashOverlay('Connecting to dashboard…');
   document.getElementById('ddot').className = 'dot off';
   document.getElementById('dstat').textContent = 'Connecting…';
   try {
-    // 1. Fetch periods list and targets in parallel
-    const [pData, tData] = await Promise.all([
-      apiFetch(`${API_GET}?action=periods`),
-      apiFetch(`${API_GET}?action=targets`),
-    ]);
-    const { periods: availPeriods, meta } = pData;
-    const { targets: tgts } = tData;
+    // Single call — returns all periods + targets + meta together
+    const { reports: rpts, targets: tgts, meta } = await apiFetch(`${API_GET}?action=all`);
     targets = (tgts || []).sort((a,b)=>a.year.localeCompare(b.year));
 
-    if (!availPeriods || !availPeriods.length) {
+    if (!rpts || !rpts.length) {
+      showDashOverlay('No data uploaded yet. Please contact the administrator.');
       document.getElementById('ddot').className = 'dot off';
-      document.getElementById('dstat').textContent = 'No data uploaded yet — contact administrator.';
-      document.getElementById('nb').textContent = '0';
+      document.getElementById('dstat').textContent = 'No data uploaded yet';
       document.getElementById('rc').textContent = '0 reports';
       document.getElementById('trc').textContent = `${targets.length} year${targets.length!==1?'s':''}`;
       renderStoredTargets();
       return;
     }
 
-    // 2. Fetch ALL period data (accumulated months)
-    const dataArr = await Promise.all(
-      availPeriods.map(p =>
-        apiFetch(`${API_GET}?action=data&period=${p}`)
-          .then(({ rows }) => ({ period: p, data: rows || [] }))
-      )
-    );
-    reports = dataArr.sort((a,b)=>a.period.localeCompare(b.period));
-
-    reload(); // re-use the render cycle
+    reports = rpts.sort((a,b)=>a.period.localeCompare(b.period));
+    showDashContent();
+    reload();
   } catch(e) {
+    showDashOverlay('Failed to load: ' + e.message, true);
     document.getElementById('dstat').textContent = 'Connection failed: ' + e.message;
     document.getElementById('ddot').className = 'dot off';
     console.error('Dashboard init failed:', e);

@@ -27,6 +27,7 @@ export default async (req) => {
       const { blobs } = await store.list({ prefix: "report/" });
       const periods = blobs
         .map((b) => b.key.replace("report/", ""))
+        .filter((p) => !p.startsWith("__"))
         .sort();
       const meta = await store.get("meta", { type: "json" }).catch(() => null);
       return Response.json({ periods, meta: meta || {} }, { headers: cors });

@@ -60,7 +60,8 @@ input[type=number]:focus,select:focus{border-color:var(--acc)}
 .btn-pulse{animation:savePulse 1.4s ease-in-out infinite}
 .empty{text-align:center;padding:28px 16px;color:var(--txt3)}
 .empty-ico{font-size:28px;margin-bottom:8px}
-code{background:rgba(30,109,213,.12);padding:1px 5px;border-radius:4px;font-size:11px;color:var(--acc)}
+/* Inline confirm row */
+.confirm-row td{background:rgba(239,68,68,.07);border-top:1px solid rgba(239,68,68,.2)}
 </style>
 </head>
 <body>
@@ -273,7 +274,7 @@ async function renderRptTable(periods,meta){
       <td class="num">${rows.length}</td>
       <td class="num">${branches}</td>
       <td style="font-size:11px;color:var(--txt3)">${dt}</td>
-      <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="deleteReport('${period}')">Delete</button></td>
+      <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="confirmDeleteReport('${period}',this)">Delete</button></td>
     </tr>`;
   }).join('');
 }
@@ -289,7 +290,7 @@ function renderTgtTable(targets){
       <td><span class="mtag">📅 ${t.year}</span></td>
       <td class="num">${brs}</td>
       <td style="font-size:11px;color:var(--txt3)">${dt}</td>
-      <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="deleteTargets('${t.year}')">Delete</button></td>
+      <td><button class="btn btn-danger" style="height:24px;font-size:11px;padding:0 9px" onclick="confirmDeleteTargets('${t.year}',this)">Delete</button></td>
     </tr>`;
   }).join('');
 }
@@ -364,9 +365,26 @@ async function uploadReport(){
   }catch(e){toast('Upload failed: '+e.message,'er');}
   finally{btn.textContent='Upload Report';}
 }
-async function deleteReport(period){
-  if(!confirm(`Delete report for ${periodLbl(period)}? Users will lose access to this month.`))return;
-  try{await apiFetch(`${ADMIN}?action=delete-period`,{method:'POST',headers:hdrs(),body:JSON.stringify({period})});toast(`${periodLbl(period)} deleted`,'in');loadAll();}catch(e){toast('Delete failed: '+e.message,'er');}
+function confirmDeleteReport(period, btn) {
+  const row = btn.closest('tr');
+  // If already showing confirm row, do nothing
+  if (row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains('confirm-row')) return;
+  const cr = document.createElement('tr');
+  cr.className = 'confirm-row';
+  cr.innerHTML = `<td colspan="5" style="padding:10px 14px">
+    <span style="font-size:12px;color:var(--bad);margin-right:12px">⚠ Delete <b>${periodLbl(period)}</b>? This removes it for all users.</span>
+    <button class="btn btn-danger" style="height:26px;font-size:11px;padding:0 12px;margin-right:6px" onclick="doDeleteReport('${period}',this)">Yes, Delete</button>
+    <button class="btn btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="this.closest('.confirm-row').remove()">Cancel</button>
+  </td>`;
+  row.after(cr);
+}
+async function doDeleteReport(period, btn) {
+  btn.textContent = 'Deleting…'; btn.disabled = true;
+  try {
+    await apiFetch(`${ADMIN}?action=delete-period`, {method:'POST', headers:hdrs(), body:JSON.stringify({period})});
+    toast(`${periodLbl(period)} deleted`, 'in');
+    loadAll();
+  } catch(e) { toast('Delete failed: ' + e.message, 'er'); btn.closest('.confirm-row').remove(); }
 }
 
 // ── Targets upload ────────────────────────────────────────
@@ -426,9 +444,25 @@ async function uploadTargets(){
   }catch(e){toast('Upload failed: '+e.message,'er');}
   finally{btn.textContent='Upload Targets';}
 }
-async function deleteTargets(year){
-  if(!confirm(`Delete all branch targets for ${year}?`))return;
-  try{await apiFetch(`${ADMIN}?action=delete-targets`,{method:'POST',headers:hdrs(),body:JSON.stringify({year})});toast(`Targets for ${year} deleted`,'in');loadAll();}catch(e){toast('Delete failed: '+e.message,'er');}
+function confirmDeleteTargets(year, btn) {
+  const row = btn.closest('tr');
+  if (row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains('confirm-row')) return;
+  const cr = document.createElement('tr');
+  cr.className = 'confirm-row';
+  cr.innerHTML = `<td colspan="4" style="padding:10px 14px">
+    <span style="font-size:12px;color:var(--bad);margin-right:12px">⚠ Delete all targets for <b>${year}</b>?</span>
+    <button class="btn btn-danger" style="height:26px;font-size:11px;padding:0 12px;margin-right:6px" onclick="doDeleteTargets('${year}',this)">Yes, Delete</button>
+    <button class="btn btn-ghost" style="height:26px;font-size:11px;padding:0 10px" onclick="this.closest('.confirm-row').remove()">Cancel</button>
+  </td>`;
+  row.after(cr);
+}
+async function doDeleteTargets(year, btn) {
+  btn.textContent = 'Deleting…'; btn.disabled = true;
+  try {
+    await apiFetch(`${ADMIN}?action=delete-targets`, {method:'POST', headers:hdrs(), body:JSON.stringify({year})});
+    toast(`Targets for ${year} deleted`, 'in');
+    loadAll();
+  } catch(e) { toast('Delete failed: ' + e.message, 'er'); btn.closest('.confirm-row').remove(); }
 }
 function downloadTargetSample(){
   const d=[['Ambalanthota',[27.66,26.90,26.15,25.39,24.63,23.87,23.11,22.36,21.60,20.84,20.08,19.33]],['Ampara',[12.45,12.19,11.92,11.66,11.39,11.13,10.86,10.60,10.33,10.07,9.80,9.54]],['Kandy',[18.01,17.63,17.25,16.86,16.48,16.10,15.71,15.33,14.95,14.56,14.18,13.80]]];

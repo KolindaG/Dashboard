@@ -32,8 +32,14 @@ export default async (req) => {
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
   if (token !== adminPwd) return unauth();
 
+  // ── Auth ping (login verification only — no data written) ─
   const url = new URL(req.url);
   const action = url.searchParams.get("action");
+
+  if (action === "ping") {
+    return Response.json({ ok: true }, { headers: cors });
+  }
+
   const store = getStore("smib");
 
   try {

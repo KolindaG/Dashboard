@@ -231,8 +231,8 @@ async function doLogin(){
   if(!pwd){document.getElementById('auth-err').textContent='Enter password';return;}
   document.getElementById('auth-err').textContent='Verifying…';
   try {
-    // probe: a 400 (not 401) means auth passed but action invalid — that's fine
-    const res = await fetch(`${ADMIN}?action=upload-period`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+pwd},body:JSON.stringify({period:'__probe__',rows:[]})});
+    // ping: auth-only check, writes nothing to storage
+    const res = await fetch(`${ADMIN}?action=ping`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+pwd},body:'{}'});
     if(res.status===401){document.getElementById('auth-err').textContent='Incorrect password';return;}
     const ct = res.headers.get('content-type')||'';
     if(!ct.includes('application/json')){document.getElementById('auth-err').textContent='Functions not reachable — check Netlify deployment.';return;}

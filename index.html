@@ -1373,166 +1373,190 @@ function renderCmpTable(tbId, key, m1, m2, br, COLS) {
 }
 
 // ════════════════════════════════════════════════
-//  STAGE MOVEMENT
+//  STAGE MOVEMENT  (individual record tracking)
 // ════════════════════════════════════════════════
-function stageGrp(s) {
+const stageGroup = s => {
   if (!s) return 'UNKNOWN';
   const u = s.toUpperCase().trim();
   if (u.startsWith('STAGE1')) return 'STAGE1';
   if (u.startsWith('STAGE2')) return 'STAGE2';
   if (u.startsWith('STAGE3')) return 'STAGE3';
-  return 'OTHER';
+  return u;
+};
+
+const mvRecordsCache = {};
+
+async function fetchRecords(period) {
+  if (mvRecordsCache[period]) return mvRecordsCache[period];
+  const { rows } = await apiFetch(`${API_GET}?action=records&period=${period}`);
+  mvRecordsCache[period] = rows || [];
+  return mvRecordsCache[period];
 }
 
-function dominantStage(stageMap) {
-  let best='', bestBpo=0;
-  Object.entries(stageMap).forEach(([s,v]) => { if ((v.bpo||0) > bestBpo) { bestBpo=v.bpo; best=s; } });
-  return stageGrp(best);
-}
+function renderMovement() { _doRenderMovement().catch(e => { document.getElementById('mv-tbody').innerHTML = emptyRow(5,'Error: '+e.message); }); }
 
-function renderMovement() {
+async function _doRenderMovement() {
   const m1 = document.getElementById('mv-m1').value;
   const m2 = document.getElementById('mv-m2').value;
   const br = document.getElementById('mv-br').value;
   const tb = document.getElementById('mv-tbody');
 
   if (!m1 || !m2) { tb.innerHTML = emptyRow(5,'Select two months to compare'); return; }
-  if (m1 === m2)  { tb.innerHTML = emptyRow(5,'Select two different months');   return; }
+  if (m1 === m2)  { tb.innerHTML = emptyRow(5,'Select two different months'); return; }
 
-  const d1 = getDataMs(m1, br||null, 'mv-pr-ms');
-  const d2 = getDataMs(m2, br||null, 'mv-pr-ms');
+  tb.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--txt3)">
+    <div style="display:inline-block;width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px"></div>
+    Loading stage movement data…
+  </td></tr>`;
 
-  const buildMap = rows => {
-    const m = {};
-    rows.forEach(r => {
-      const key = r.BranchName + '||' + r.ProductGroup;
-      if (!m[key]) m[key] = { branch:r.BranchName, product:r.ProductGroup, stages:{} };
-      const st = (r['FINAL STAGE']||'').trim().toUpperCase();
-      if (!m[key].stages[st]) m[key].stages[st] = {bpo:0,files:0};
-      m[key].stages[st].bpo   += r.TotalPrincipal||0;
-      m[key].stages[st].files += r.FileCount||0;
-    });
-    return m;
-  };
+  const [recs1, recs2] = await Promise.all([fetchRecords(m1), fetchRecords(m2)]);
 
-  const map1 = buildMap(d1), map2 = buildMap(d2);
-  const allKeys = [...new Set([...Object.keys(map1),...Object.keys(map2)])];
-  const movements = {};
+  if (!recs1.length && !recs2.length) {
+    tb.innerHTML = emptyRow(5, 'No records found. Re-upload reports via admin panel to enable Stage Movement.');
+    return;
+  }
 
-  const addMove = (mvKey, label, dirCls, badge, entry) => {
-    if (!movements[mvKey]) movements[mvKey] = {label, dirCls, badge, entries:[]};
-    movements[mvKey].entries.push(entry);
-  };
+  const selPr = getMsSelected('mv-pr-ms');
+  const filt  = recs => recs.filter(r =>
+    (!br || r.b === br) &&
+    (!selPr?.length || selPr.includes(r.p))
+  );
+  const d1 = filt(recs1), d2 = filt(recs2);
 
-  allKeys.forEach(key => {
-    const e1=map1[key], e2=map2[key];
-    const branch=(e1||e2).branch, product=(e1||e2).product;
-    if (!e1) {
-      const dom2=dominantStage(e2.stages);
-      const bpo=Object.values(e2.stages).reduce((s,v)=>s+(v.bpo||0),0);
-      const files=Object.values(e2.stages).reduce((s,v)=>s+(v.files||0),0);
-      addMove('NEW LOAN → '+dom2, 'NEW LOAN → '+dom2, 'b-new', '\uD83D\uDDD2\uFE0F New Entry', {branch,product,from:'NEW LOAN',to:dom2,bpo,files});
-      return;
+  const map1 = {}, map2 = {};
+  d1.forEach(r => map1[r.a] = r);
+  d2.forEach(r => map2[r.a] = r);
+
+  const allArrs = [...new Set([...Object.keys(map1), ...Object.keys(map2)])];
+  const moves = {};
+
+  allArrs.forEach(arr => {
+    const r1 = map1[arr], r2 = map2[arr];
+    let from, to;
+    if (r1 && r2) {
+      from = stageGroup(r1.s); to = stageGroup(r2.s);
+      if (from === to) return;
+    } else if (r1 && !r2) {
+      from = stageGroup(r1.s); to = 'SETTLED/CONVERTED';
+    } else {
+      from = 'NEW LOAN'; to = stageGroup(r2.s);
     }
-    if (!e2) {
-      const dom1=dominantStage(e1.stages);
-      const bpo=Object.values(e1.stages).reduce((s,v)=>s+(v.bpo||0),0);
-      const files=Object.values(e1.stages).reduce((s,v)=>s+(v.files||0),0);
-      addMove(dom1+' → SETTLED/CONVERTED', dom1+' → SETTLED/CONVERTED', 'b-out', '\u2705 Exited', {branch,product,from:dom1,to:'SETTLED',bpo,files});
-      return;
-    }
-    const dom1=dominantStage(e1.stages), dom2=dominantStage(e2.stages);
-    if (dom1===dom2) return;
-    const mvKey=dom1+' → '+dom2;
-    const bpo=Object.values(e2.stages).reduce((s,v)=>s+(v.bpo||0),0);
-    const files=Object.values(e2.stages).reduce((s,v)=>s+(v.files||0),0);
-    const n1=parseInt(dom1.replace('STAGE','')||0), n2=parseInt(dom2.replace('STAGE','')||0);
-    const isDown=n2>n1;
-    addMove(mvKey, mvKey, isDown?'b-s3':'b-s1', isDown?'\uD83D\uDCC9 Downgrade':'\uD83D\uDCC8 Upgrade', {branch,product,from:dom1,to:dom2,bpo,files});
+    const key = `${from} \u2192 ${to}`;
+    if (!moves[key]) moves[key] = { from, to, loans: [] };
+    moves[key].loans.push({ r1, r2, row: r1||r2 });
   });
 
-  if (!Object.keys(movements).length) { tb.innerHTML=emptyRow(5,'No stage changes between selected months'); return; }
+  if (!Object.keys(moves).length) {
+    tb.innerHTML = emptyRow(5, 'No stage changes between selected months'); return;
+  }
 
-  const ORDER=['NEW LOAN → STAGE1','NEW LOAN → STAGE2','NEW LOAN → STAGE3',
-    'STAGE1 → STAGE2','STAGE1 → STAGE3','STAGE2 → STAGE3',
-    'STAGE3 → STAGE2','STAGE3 → STAGE1','STAGE2 → STAGE1',
-    'STAGE1 → SETTLED/CONVERTED','STAGE2 → SETTLED/CONVERTED','STAGE3 → SETTLED/CONVERTED'];
-  const sortedKeys=Object.keys(movements).sort((a,b)=>{const ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);return(ia<0?999:ia)-(ib<0?999:ib);});
+  const ORDER = [
+    'NEW LOAN \u2192 STAGE1','NEW LOAN \u2192 STAGE2','NEW LOAN \u2192 STAGE3',
+    'STAGE1 \u2192 STAGE2','STAGE1 \u2192 STAGE3','STAGE2 \u2192 STAGE3',
+    'STAGE3 \u2192 STAGE2','STAGE3 \u2192 STAGE1','STAGE2 \u2192 STAGE1',
+    'STAGE1 \u2192 SETTLED/CONVERTED','STAGE2 \u2192 SETTLED/CONVERTED','STAGE3 \u2192 SETTLED/CONVERTED'
+  ];
+  const keys = Object.keys(moves).sort((a,b) => {
+    const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+    if (ia===-1 && ib===-1) return a.localeCompare(b);
+    return (ia===-1?999:ia) - (ib===-1?999:ib);
+  });
 
-  let html='';
-  sortedKeys.forEach((mvKey,i)=>{
-    const mv=movements[mvKey];
-    const totalFiles=mv.entries.reduce((s,e)=>s+(e.files||0),0);
-    const totalBpo=mv.entries.reduce((s,e)=>s+(e.bpo||0),0);
-    const detId='mvd'+i;
-    const entriesJson=JSON.stringify(mv.entries);
-    html+=`<tr class="mv-row" style="cursor:pointer" onclick="toggleMvDetail('${detId}')">
-      <td style="width:26px"><span class="mv-toggle" id="t${detId}" style="display:inline-block;transition:transform .2s;font-size:11px;color:var(--txt3)">&#9654;</span></td>
-      <td style="font-weight:700;letter-spacing:.02em">${mv.label}</td>
-      <td class="num" style="color:var(--txt2)">${totalFiles>0?totalFiles.toLocaleString():'&#8212;'}</td>
-      <td class="num" style="color:var(--warn);font-weight:600">${fmtM(totalBpo)}</td>
-      <td><span class="badge ${mv.dirCls}">${mv.badge}</span></td>
+  const dirInfo = key => {
+    if (key.includes('NEW LOAN')) return { lbl:'\uD83D\uDDD2\uFE0F New Entry', cls:'b-new' };
+    if (key.includes('SETTLED'))  return { lbl:'\u2705 Exited', cls:'b-out' };
+    const [f,t] = key.split(' \u2192 ');
+    const fn = parseInt(f.replace('STAGE','')), tn = parseInt(t.replace('STAGE',''));
+    if (tn > fn) return { lbl:'\uD83D\uDCC9 Downgrade', cls:'b-s3' };
+    if (tn < fn) return { lbl:'\uD83D\uDCC8 Upgrade', cls:'b-s1' };
+    return { lbl:'\u2014', cls:'b-s2' };
+  };
+
+  const gc = s => s.startsWith('STAGE1')?'b-s1':s.startsWith('STAGE2')?'b-s2':s.startsWith('STAGE3')?'b-s3':'b-out';
+  const l1 = periodLbl(m1), l2 = periodLbl(m2);
+  let html = '';
+
+  keys.forEach((key, i) => {
+    const mv  = moves[key];
+    const bpo = mv.loans.reduce((s,l) => s + (l.row.v||0), 0);
+    const di  = dirInfo(key);
+    const rid = `mv${i}`;
+    html += `<tr class="mv-row" onclick="toggleMv('${rid}')">
+      <td><span class="mv-toggle" id="t${rid}">\u25BA</span></td>
+      <td style="font-weight:600">${key}</td>
+      <td class="num">${mv.loans.length.toLocaleString()}</td>
+      <td class="num" style="color:var(--warn)">${fmtM(bpo)}</td>
+      <td><span class="badge ${di.cls}">${di.lbl}</span></td>
     </tr>
-    <tr id="${detId}" style="display:none"><td colspan="5" style="padding:0;background:var(--bg1)">
-      <div style="padding:8px 16px 12px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <span style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em">${mv.entries.length} Branch-Product${mv.entries.length>1?'s':''}</span>
-          <button class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 10px" onclick="event.stopPropagation();downloadMvCsv(mvDetailCache['${detId}'],'${mvKey.replace(/['"]/g,'')}')">&#8595; Download CSV</button>
+    <tr class="mv-detail" id="${rid}" style="display:none"><td colspan="5">
+      <div class="mv-inner">
+        <div style="display:flex;justify-content:flex-end;padding:6px 8px 4px">
+          <button class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 10px" onclick="event.stopPropagation();downloadMvCsv(moves_${i},l1_${i},l2_${i})">&#8595; Download CSV</button>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead><tr>
-            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">Branch</th>
-            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">Product</th>
-            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">From</th>
-            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">To</th>
-            <th style="text-align:right;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">Files</th>
-            <th style="text-align:right;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">BPO (M)</th>
-          </tr></thead>
-          <tbody>${mv.entries.map(e=>`<tr style="border-bottom:1px solid rgba(22,51,84,.4)">
-            <td style="padding:6px 10px;font-weight:600">${e.branch}</td>
-            <td style="padding:6px 10px;color:var(--txt2);font-size:11px">${e.product||'&#8212;'}</td>
-            <td style="padding:6px 10px"><span class="badge ${e.from.startsWith('STAGE3')?'b-s3':e.from.startsWith('STAGE2')?'b-s2':e.from==='NEW LOAN'?'b-new':'b-s1'}">${e.from}</span></td>
-            <td style="padding:6px 10px"><span class="badge ${e.to.startsWith('STAGE3')?'b-s3':e.to.startsWith('STAGE2')?'b-s2':e.to==='SETTLED'?'b-out':'b-s1'}">${e.to==='SETTLED'?'SETTLED/CONVERTED':e.to}</span></td>
-            <td style="padding:6px 10px;text-align:right;color:var(--txt2)">${e.files>0?e.files.toLocaleString():'&#8212;'}</td>
-            <td style="padding:6px 10px;text-align:right;color:var(--warn);font-weight:600">${fmtM(e.bpo)}</td>
-          </tr>`).join('')}</tbody>
-        </table>
+        <table><thead><tr>
+          <th>Arrangement No</th><th>Branch</th><th>Product</th>
+          <th class="num">BPO (M)</th>
+          <th>${l1} Stage</th><th>${l2} Stage</th>
+        </tr></thead><tbody>
+        ${mv.loans.map(l => {
+          const sg1 = l.r1?.s||'\u2014', sg2 = l.r2?.s||'\u2014';
+          return `<tr>
+            <td>${l.row.a||'\u2014'}</td>
+            <td>${l.row.b||'\u2014'}</td>
+            <td style="font-size:11px;color:var(--txt3)">${l.row.p||'\u2014'}</td>
+            <td class="num">${fmtM(l.row.v||0)}</td>
+            <td><span class="badge ${gc(sg1)}">${sg1}</span></td>
+            <td><span class="badge ${gc(sg2)}">${sg2}</span></td>
+          </tr>`;
+        }).join('')}
+        </tbody></table>
       </div>
     </td></tr>`;
-    mvDetailCache[detId]=mv.entries;
   });
-  tb.innerHTML=html;
+
+  // Store loan data for download
+  keys.forEach((key, i) => {
+    window[`moves_${i}`] = moves[key].loans;
+    window[`l1_${i}`] = l1;
+    window[`l2_${i}`] = l2;
+  });
+
+  tb.innerHTML = html;
 }
 
-const mvDetailCache={};
-
-function toggleMvDetail(id){
-  const el=document.getElementById(id);
-  const tog=document.getElementById('t'+id);
-  if(!el)return;
-  const open=el.style.display==='table-row';
-  el.style.display=open?'none':'table-row';
-  if(tog)tog.style.transform=open?'none':'rotate(90deg)';
+function toggleMv(id) {
+  const el  = document.getElementById(id);
+  const tog = document.getElementById('t'+id);
+  if (!el) return;
+  const open = el.style.display === 'table-row';
+  el.style.display = open ? 'none' : 'table-row';
+  if (tog) tog.classList.toggle('open', !open);
 }
 
-function downloadMvCsv(entries,label){
-  if(!entries||!entries.length)return;
-  const hdr='Branch,Product,From Stage,To Stage,Files,BPO';
-  const rows=entries.map(e=>['"'+e.branch+'"','"'+(e.product||'')+'"','"'+e.from+'"','"'+(e.to==='SETTLED'?'SETTLED/CONVERTED':e.to)+'"',e.files||0,((e.bpo||0)/1000000).toFixed(4)].join(','));
-  const csv=[hdr,...rows].join('\n');
-  const safe=label.replace(/[\u2192\/\\:*?"<>|]/g,'_');
-  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'Stage_Movement_'+safe+'.csv'});
-  a.click();URL.revokeObjectURL(a.href);
+function downloadMvCsv(loans, l1, l2) {
+  if (!loans||!loans.length) return;
+  const hdr = `Arrangement No,Branch,Product,BPO,${l1} Stage,${l2} Stage`;
+  const rows = loans.map(l => [
+    '"'+(l.row.a||'')+'"',
+    '"'+(l.row.b||'')+'"',
+    '"'+(l.row.p||'')+'"',
+    ((l.row.v||0)/1e6).toFixed(4),
+    '"'+(l.r1?.s||'—')+'"',
+    '"'+(l.r2?.s||'—')+'"'
+  ].join(','));
+  const csv = [hdr,...rows].join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv],{type:'text/csv'})),
+    download: `Stage_Movement_${l1}_to_${l2}.csv`
+  });
+  a.click(); URL.revokeObjectURL(a.href);
 }
-
-function toggleMv(id){toggleMvDetail(id);}
-
-
 
 // ════════════════════════════════════════════════
 //  STAGE BREAKDOWN TABLE  (BPO / Files toggle)
 // ════════════════════════════════════════════════
-let sbMode = 'bpo'; // 'bpo' | 'files'
+let sbMode = 'bpo';
+const sbRecordsCache = {};
 
 function setSbMode(mode) {
   sbMode = mode;
@@ -1541,41 +1565,63 @@ function setSbMode(mode) {
   renderStageBreakdown();
 }
 
-function renderStageBreakdown() {
+function renderStageBreakdown() { _doRenderStageBreakdown().catch(e => console.error('sb error',e)); }
+
+async function _doRenderStageBreakdown() {
   const mo   = document.getElementById('sb-mo').value;
   const head = document.getElementById('sb-head');
   const tb   = document.getElementById('sb-tbody');
   const mode = sbMode;
 
   if (!mo) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'Select a month'); return; }
-  const data = getDataMs(mo, null, 'sb-pr-ms');
-  if (!data.length) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'No data for selection'); return; }
 
   const stageOrder = ['STAGE1A','STAGE1B','STAGE2A','STAGE2B','STAGE3A','STAGE3B','STAGE3C','STAGE3D'];
-  const allStages  = [...new Set(data.map(r=>(r['FINAL STAGE']||'').trim().toUpperCase()))]
-    .filter(Boolean)
-    .sort((a,b)=>{ const ia=stageOrder.indexOf(a),ib=stageOrder.indexOf(b); if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return -1; if(ib>=0)return 1; return a.localeCompare(b); });
 
-  // Group by branch → stage → {bpo, files}
-  const byBranch = {};
-  data.forEach(r => {
-    const br = r.BranchName||'Unknown';
-    const st = (r['FINAL STAGE']||'').trim().toUpperCase();
-    if (!byBranch[br]) byBranch[br] = {};
-    if (!byBranch[br][st]) byBranch[br][st] = {bpo:0, files:0};
-    byBranch[br][st].bpo   += r.TotalPrincipal||0;
-    byBranch[br][st].files += r.FileCount||0;
-  });
+  if (mode === 'bpo') {
+    // Use aggregated data (fast, already loaded)
+    const data = getDataMs(mo, null, 'sb-pr-ms');
+    if (!data.length) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'No data for selection'); return; }
 
+    const allStages = [...new Set(data.map(r=>(r['FINAL STAGE']||'').trim().toUpperCase()))].filter(Boolean)
+      .sort((a,b)=>{ const ia=stageOrder.indexOf(a),ib=stageOrder.indexOf(b); if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return-1; if(ib>=0)return 1; return a.localeCompare(b); });
+
+    const byBranch = {};
+    data.forEach(r => {
+      const br = r.BranchName||'Unknown', st = (r['FINAL STAGE']||'').trim().toUpperCase();
+      if (!byBranch[br]) byBranch[br] = {};
+      byBranch[br][st] = (byBranch[br][st]||0) + (r.TotalPrincipal||0);
+    });
+    _renderSbTable(head, tb, byBranch, allStages, 'BPO (M)', v=>v>0?fmtM(v):'—', v=>v);
+
+  } else {
+    // Files mode: use records for accurate counts
+    if (!sbRecordsCache[mo]) {
+      head.innerHTML=''; tb.innerHTML=`<tr><td style="padding:20px;text-align:center;color:var(--txt3)">
+        <div style="display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px"></div>Loading file counts…</td></tr>`;
+      const {rows} = await apiFetch(`${API_GET}?action=records&period=${mo}`);
+      sbRecordsCache[mo] = rows||[];
+    }
+    const selPr = getMsSelected('sb-pr-ms');
+    const recs  = sbRecordsCache[mo].filter(r => !selPr?.length || selPr.includes(r.p));
+    if (!recs.length) {
+      head.innerHTML=''; tb.innerHTML=emptyRow(1,'No records found. Re-upload this month via admin to enable file counts.'); return;
+    }
+    // Collect all stages from records
+    const allStages = [...new Set(recs.map(r=>(r.s||'').trim().toUpperCase()))].filter(Boolean)
+      .sort((a,b)=>{ const ia=stageOrder.indexOf(a),ib=stageOrder.indexOf(b); if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return-1; if(ib>=0)return 1; return a.localeCompare(b); });
+    // Group by branch → stage → count
+    const byBranch = {};
+    recs.forEach(r => {
+      const br = r.b||'Unknown', st = (r.s||'').trim().toUpperCase();
+      if (!byBranch[br]) byBranch[br] = {};
+      byBranch[br][st] = (byBranch[br][st]||0) + 1;
+    });
+    _renderSbTable(head, tb, byBranch, allStages, 'Files', v=>v>0?v.toLocaleString():'—', v=>v);
+  }
+}
+
+function _renderSbTable(head, tb, byBranch, allStages, unit, fmt, getV) {
   const branches = Object.keys(byBranch).sort();
-  const unit = mode==='bpo' ? 'BPO (M)' : 'Files';
-  const fmt  = mode==='bpo' ? v => v>0 ? fmtM(v)  : '—'
-                             : v => v>0 ? v.toLocaleString() : '—';
-  const get  = (obj, st) => mode==='bpo' ? (obj[st]?.bpo||0) : (obj[st]?.files||0);
-  const getTotal = obj => mode==='bpo'
-    ? Object.values(obj).reduce((s,v)=>s+(v.bpo||0),0)
-    : Object.values(obj).reduce((s,v)=>s+(v.files||0),0);
-
   head.innerHTML = `<tr>
     <th onclick="sortCol(this,'sb-tbody',0)" style="white-space:nowrap">Branch<span class="si"></span></th>
     ${allStages.map((s,i)=>`<th class="num" onclick="sortCol(this,'sb-tbody',${i+1})" style="white-space:nowrap">${s}<span class="si"></span></th>`).join('')}
@@ -1583,50 +1629,42 @@ function renderStageBreakdown() {
   </tr>`;
 
   const stageTotals = {}; allStages.forEach(s=>stageTotals[s]=0);
-  let grandTotal = 0;
+  let grand = 0;
 
   const rowsHtml = branches.map(br => {
     const stages = byBranch[br];
-    const total  = getTotal(stages);
-    grandTotal  += total;
-    const cells  = allStages.map(s => {
-      const v = get(stages, s);
-      stageTotals[s] += v;
+    const total  = Object.values(stages).reduce((s,v)=>s+v,0);
+    grand += total;
+    const cells = allStages.map(s => {
+      const v = stages[s]||0; stageTotals[s]+=v;
       const cl = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
       return `<td class="num" style="${cl}">${fmt(v)}</td>`;
     }).join('');
     return `<tr><td style="font-weight:600;white-space:nowrap">${br}</td>${cells}<td class="num" style="font-weight:700">${fmt(total)}</td></tr>`;
   }).join('');
 
-  const totalCells = allStages.map(s => {
+  const totCells = allStages.map(s => {
     const v = stageTotals[s];
     const cl = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
     return `<td class="num" style="${cl};font-weight:700">${fmt(v)}</td>`;
   }).join('');
 
-  tb.innerHTML = rowsHtml + `<tr class="total-row"><td>TOTAL</td>${totalCells}<td class="num" style="font-weight:700">${fmt(grandTotal)}</td></tr>`;
+  tb.innerHTML = rowsHtml + `<tr class="total-row"><td>TOTAL</td>${totCells}<td class="num" style="font-weight:700">${fmt(grand)}</td></tr>`;
 }
 
 function exportSbCsv() {
-  const mo = document.getElementById('sb-mo').value||'data';
+  const mo   = document.getElementById('sb-mo').value||'data';
   const head = document.getElementById('sb-head');
   const tb   = document.getElementById('sb-tbody');
   if (!head||!tb) return;
   const headers = [...head.querySelectorAll('th')].map(th=>th.textContent.replace(/[▲▼]/g,'').trim());
   const rows    = [...tb.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent.trim()));
-  const csv     = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
-  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:`Stage_Breakdown_${mo}.csv`});
+  const csv     = [headers.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:`Stage_Breakdown_${mo}_${sbMode}.csv`});
   a.click(); URL.revokeObjectURL(a.href);
 }
 
-function toggleMv(id, row) {
-  const el=document.getElementById(id);
-  const tog=document.getElementById('t'+id);
-  if(!el||!tog)return;
-  const open=el.style.display==='table-row';
-  el.style.display=open?'none':'table-row';
-  tog.classList.toggle('open',!open);
-}
+
 
 // ════════════════════════════════════════════════
 //  TREND CHART

@@ -322,8 +322,9 @@ function onReportFile(e){
       const am=parseFloat((r[amC]||'0').replace(/,/g,''))||0;
       if(!br||!st)continue;
       const k=`${br}||${pr}||${st}`;
-      if(!agg[k])agg[k]={BranchName:br,ProductGroup:pr,'FINAL STAGE':st,TotalPrincipal:0};
+      if(!agg[k])agg[k]={BranchName:br,ProductGroup:pr,'FINAL STAGE':st,TotalPrincipal:0,FileCount:0};
       agg[k].TotalPrincipal+=am;
+      agg[k].FileCount+=1;
     }
     parsedReport=Object.values(agg);
     if(!parsedReport.length){toast('No valid rows found','er');return;}

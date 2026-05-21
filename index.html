@@ -159,6 +159,10 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ms-actions button:hover{background:var(--acc-glow);color:var(--txt)}
 
 @keyframes spin{to{transform:rotate(360deg)}}
+.toggle-grp{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.tgl-btn{padding:0 12px;height:30px;border:none;background:transparent;color:var(--txt3);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.tgl-btn.active{background:var(--acc);color:#fff}
+.tgl-btn:not(.active):hover{background:var(--bg3);color:var(--txt)}
 /* ── SAVE PULSE ── */
 @keyframes savePulse{0%,100%{box-shadow:0 0 0 0 rgba(30,109,213,.5)}50%{box-shadow:0 0 0 6px rgba(30,109,213,0)}}
 .btn-pulse{animation:savePulse 1.4s ease-in-out infinite}
@@ -518,8 +522,12 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
         <div class="card-ctrls">
           <div class="fg"><label>Month</label><select id="sb-mo" onchange="renderStageBreakdown()"><option value="">— Select —</option></select></div>
           <div class="fg"><label>Product</label><div id="sb-pr-ms" class="ms-wrap"></div></div>
-          <button class="btn btn-ghost" onclick="exportExcel('sb-tbody','Stage_Breakdown')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2m-2 4h8m-4-4h4"/></svg>
+          <div class="toggle-grp" id="sb-mode-grp">
+            <button class="tgl-btn active" id="sb-bpo-btn" onclick="setSbMode('bpo')">BPO</button>
+            <button class="tgl-btn" id="sb-fc-btn" onclick="setSbMode('files')">Files</button>
+          </div>
+          <button class="btn btn-ghost" onclick="exportSbCsv()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export CSV
           </button>
         </div>
@@ -1365,13 +1373,28 @@ function renderCmpTable(tbId, key, m1, m2, br, COLS) {
 }
 
 // ════════════════════════════════════════════════
-//  STAGE MOVEMENT  (works with aggregated data)
+//  STAGE MOVEMENT
 // ════════════════════════════════════════════════
+function stageGrp(s) {
+  if (!s) return 'UNKNOWN';
+  const u = s.toUpperCase().trim();
+  if (u.startsWith('STAGE1')) return 'STAGE1';
+  if (u.startsWith('STAGE2')) return 'STAGE2';
+  if (u.startsWith('STAGE3')) return 'STAGE3';
+  return 'OTHER';
+}
+
+function dominantStage(stageMap) {
+  let best='', bestBpo=0;
+  Object.entries(stageMap).forEach(([s,v]) => { if ((v.bpo||0) > bestBpo) { bestBpo=v.bpo; best=s; } });
+  return stageGrp(best);
+}
+
 function renderMovement() {
-  const m1  = document.getElementById('mv-m1').value;
-  const m2  = document.getElementById('mv-m2').value;
-  const br  = document.getElementById('mv-br').value;
-  const tb  = document.getElementById('mv-tbody');
+  const m1 = document.getElementById('mv-m1').value;
+  const m2 = document.getElementById('mv-m2').value;
+  const br = document.getElementById('mv-br').value;
+  const tb = document.getElementById('mv-tbody');
 
   if (!m1 || !m2) { tb.innerHTML = emptyRow(5,'Select two months to compare'); return; }
   if (m1 === m2)  { tb.innerHTML = emptyRow(5,'Select two different months');   return; }
@@ -1379,185 +1402,221 @@ function renderMovement() {
   const d1 = getDataMs(m1, br||null, 'mv-pr-ms');
   const d2 = getDataMs(m2, br||null, 'mv-pr-ms');
 
-  // Build stage-totals map: key = "BranchName||ProductGroup"
-  const buildMap = (rows) => {
+  const buildMap = rows => {
     const m = {};
     rows.forEach(r => {
-      const key = `${r.BranchName}||${r.ProductGroup}`;
-      if (!m[key]) m[key] = { branch: r.BranchName, product: r.ProductGroup, stages: {} };
-      const s = (r['FINAL STAGE'] || '').trim().toUpperCase();
-      m[key].stages[s] = (m[key].stages[s] || 0) + r.TotalPrincipal;
+      const key = r.BranchName + '||' + r.ProductGroup;
+      if (!m[key]) m[key] = { branch:r.BranchName, product:r.ProductGroup, stages:{} };
+      const st = (r['FINAL STAGE']||'').trim().toUpperCase();
+      if (!m[key].stages[st]) m[key].stages[st] = {bpo:0,files:0};
+      m[key].stages[st].bpo   += r.TotalPrincipal||0;
+      m[key].stages[st].files += r.FileCount||0;
     });
     return m;
   };
 
-  const map1 = buildMap(d1);
-  const map2 = buildMap(d2);
-  const allKeys = [...new Set([...Object.keys(map1), ...Object.keys(map2)])];
+  const map1 = buildMap(d1), map2 = buildMap(d2);
+  const allKeys = [...new Set([...Object.keys(map1),...Object.keys(map2)])];
+  const movements = {};
 
-  // Classify each entity's net stage movement
-  const moves = { upgrade: [], downgrade: [], stable: [], newEntry: [], exited: [] };
+  const addMove = (mvKey, label, dirCls, badge, entry) => {
+    if (!movements[mvKey]) movements[mvKey] = {label, dirCls, badge, entries:[]};
+    movements[mvKey].entries.push(entry);
+  };
 
   allKeys.forEach(key => {
-    const e1 = map1[key], e2 = map2[key];
-    const branch   = (e1 || e2).branch;
-    const product  = (e1 || e2).product;
-
+    const e1=map1[key], e2=map2[key];
+    const branch=(e1||e2).branch, product=(e1||e2).product;
     if (!e1) {
-      const bpo = Object.values(e2.stages).reduce((s,v)=>s+v, 0);
-      moves.newEntry.push({ branch, product, bpo });
+      const dom2=dominantStage(e2.stages);
+      const bpo=Object.values(e2.stages).reduce((s,v)=>s+(v.bpo||0),0);
+      const files=Object.values(e2.stages).reduce((s,v)=>s+(v.files||0),0);
+      addMove('NEW LOAN → '+dom2, 'NEW LOAN → '+dom2, 'b-new', '\uD83D\uDDD2\uFE0F New Entry', {branch,product,from:'NEW LOAN',to:dom2,bpo,files});
       return;
     }
     if (!e2) {
-      const bpo = Object.values(e1.stages).reduce((s,v)=>s+v, 0);
-      moves.exited.push({ branch, product, bpo });
+      const dom1=dominantStage(e1.stages);
+      const bpo=Object.values(e1.stages).reduce((s,v)=>s+(v.bpo||0),0);
+      const files=Object.values(e1.stages).reduce((s,v)=>s+(v.files||0),0);
+      addMove(dom1+' → SETTLED/CONVERTED', dom1+' → SETTLED/CONVERTED', 'b-out', '\u2705 Exited', {branch,product,from:dom1,to:'SETTLED',bpo,files});
       return;
     }
-
-    // Compare S3 BPO between periods
-    const s3Sum = (stages) => Object.entries(stages)
-      .filter(([s]) => s.startsWith('STAGE3') || s.startsWith('3'))
-      .reduce((t,[,v]) => t+v, 0);
-    const totSum = (stages) => Object.values(stages).reduce((t,v) => t+v, 0);
-
-    const s3b1 = s3Sum(e1.stages), tot1 = totSum(e1.stages);
-    const s3b2 = s3Sum(e2.stages), tot2 = totSum(e2.stages);
-    const pct1 = tot1 > 0 ? (s3b1/tot1)*100 : 0;
-    const pct2 = tot2 > 0 ? (s3b2/tot2)*100 : 0;
-    const dPct = pct2 - pct1;
-    const dBpo = s3b2 - s3b1;
-
-    if (Math.abs(dPct) < 0.01 && Math.abs(dBpo) < 1) {
-      moves.stable.push({ branch, product, pct1, pct2, dPct, dBpo });
-    } else if (dPct > 0) {
-      moves.downgrade.push({ branch, product, pct1, pct2, dPct, dBpo });
-    } else {
-      moves.upgrade.push({ branch, product, pct1, pct2, dPct, dBpo });
-    }
+    const dom1=dominantStage(e1.stages), dom2=dominantStage(e2.stages);
+    if (dom1===dom2) return;
+    const mvKey=dom1+' → '+dom2;
+    const bpo=Object.values(e2.stages).reduce((s,v)=>s+(v.bpo||0),0);
+    const files=Object.values(e2.stages).reduce((s,v)=>s+(v.files||0),0);
+    const n1=parseInt(dom1.replace('STAGE','')||0), n2=parseInt(dom2.replace('STAGE','')||0);
+    const isDown=n2>n1;
+    addMove(mvKey, mvKey, isDown?'b-s3':'b-s1', isDown?'\uD83D\uDCC9 Downgrade':'\uD83D\uDCC8 Upgrade', {branch,product,from:dom1,to:dom2,bpo,files});
   });
 
-  const l1 = periodLbl(m1), l2 = periodLbl(m2);
+  if (!Object.keys(movements).length) { tb.innerHTML=emptyRow(5,'No stage changes between selected months'); return; }
 
-  const mkSection = (label, cls, badge, rows, showPct) => {
-    if (!rows.length) return '';
-    const sortedRows = [...rows].sort((a,b) => Math.abs(b.dPct||0) - Math.abs(a.dPct||0));
-    const rowHtml = sortedRows.map(r => `<tr>
-      <td style="white-space:nowrap;font-weight:600">${r.branch}</td>
-      <td style="font-size:11px;color:var(--txt3)">${r.product||'—'}</td>
-      ${showPct ? `
-      <td class="num">${fmtPct(r.pct1)}</td>
-      <td class="num">${fmtPct(r.pct2)}</td>
-      <td class="num"><span style="font-weight:700;color:${r.dPct>0?'var(--bad)':'var(--ok)'}">${r.dPct>0?'▲':'▼'} ${Math.abs(r.dPct).toFixed(2)}%</span></td>
-      <td class="num"><span style="color:${r.dBpo>0?'var(--bad)':'var(--ok)'};font-size:11px">${r.dBpo>0?'+':''}${fmtM(r.dBpo)}</span></td>
-      ` : `<td class="num" colspan="4" style="color:var(--txt3)">${fmtM(r.bpo||0)}</td>`}
-    </tr>`).join('');
-    return `<tr style="background:var(--bg2)">
-      <td colspan="6" style="padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">
-        <span class="badge ${cls}" style="margin-right:8px">${badge}</span>
-        ${label} <span style="color:var(--txt3);font-weight:400;margin-left:4px">(${rows.length} branch-products)</span>
-      </td>
+  const ORDER=['NEW LOAN → STAGE1','NEW LOAN → STAGE2','NEW LOAN → STAGE3',
+    'STAGE1 → STAGE2','STAGE1 → STAGE3','STAGE2 → STAGE3',
+    'STAGE3 → STAGE2','STAGE3 → STAGE1','STAGE2 → STAGE1',
+    'STAGE1 → SETTLED/CONVERTED','STAGE2 → SETTLED/CONVERTED','STAGE3 → SETTLED/CONVERTED'];
+  const sortedKeys=Object.keys(movements).sort((a,b)=>{const ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);return(ia<0?999:ia)-(ib<0?999:ib);});
+
+  let html='';
+  sortedKeys.forEach((mvKey,i)=>{
+    const mv=movements[mvKey];
+    const totalFiles=mv.entries.reduce((s,e)=>s+(e.files||0),0);
+    const totalBpo=mv.entries.reduce((s,e)=>s+(e.bpo||0),0);
+    const detId='mvd'+i;
+    const entriesJson=JSON.stringify(mv.entries);
+    html+=`<tr class="mv-row" style="cursor:pointer" onclick="toggleMvDetail('${detId}')">
+      <td style="width:26px"><span class="mv-toggle" id="t${detId}" style="display:inline-block;transition:transform .2s;font-size:11px;color:var(--txt3)">&#9654;</span></td>
+      <td style="font-weight:700;letter-spacing:.02em">${mv.label}</td>
+      <td class="num" style="color:var(--txt2)">${totalFiles>0?totalFiles.toLocaleString():'&#8212;'}</td>
+      <td class="num" style="color:var(--warn);font-weight:600">${fmtM(totalBpo)}</td>
+      <td><span class="badge ${mv.dirCls}">${mv.badge}</span></td>
     </tr>
-    <tr style="background:var(--bg2)"><td colspan="6" style="padding:0 12px 6px"><table style="width:100%;font-size:12px;border-collapse:collapse">
-      <thead><tr>
-        <th style="text-align:left;padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Branch</th>
-        <th style="text-align:left;padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Product</th>
-        ${showPct ? `
-        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">${l1} S3%</th>
-        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">${l2} S3%</th>
-        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Δ S3%</th>
-        <th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase">Δ S3 BPO</th>
-        ` : `<th class="num" style="padding:4px 8px;color:var(--txt3);font-size:10px;text-transform:uppercase" colspan="4">BPO</th>`}
-      </tr></thead>
-      <tbody>${rowHtml}</tbody>
-    </table></td></tr>`;
-  };
-
-  const total = moves.downgrade.length + moves.upgrade.length + moves.stable.length + moves.newEntry.length + moves.exited.length;
-  if (!total) { tb.innerHTML = emptyRow(5, 'No data for selected filters'); return; }
-
-  tb.innerHTML =
-    mkSection(`Downgraded — NPL increased (${l1} → ${l2})`, 'b-s3', '📉 Downgrade', moves.downgrade, true) +
-    mkSection(`Upgraded — NPL improved (${l1} → ${l2})`,    'b-s1', '📈 Upgrade',   moves.upgrade,   true) +
-    mkSection('No significant change',                        'b-s2', '➡ Stable',     moves.stable,    true) +
-    mkSection('New entries (not in '+ l1 +')',                'b-new','🆕 New',        moves.newEntry,  false) +
-    mkSection('Exited (not in '+ l2 +')',                     'b-out','✅ Exited',      moves.exited,    false);
+    <tr id="${detId}" style="display:none"><td colspan="5" style="padding:0;background:var(--bg1)">
+      <div style="padding:8px 16px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em">${mv.entries.length} Branch-Product${mv.entries.length>1?'s':''}</span>
+          <button class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 10px" onclick="event.stopPropagation();downloadMvCsv(mvDetailCache['${detId}'],'${mvKey.replace(/['"]/g,'')}')">&#8595; Download CSV</button>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">Branch</th>
+            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">Product</th>
+            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">From</th>
+            <th style="text-align:left;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">To</th>
+            <th style="text-align:right;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">Files</th>
+            <th style="text-align:right;padding:5px 10px;color:var(--txt3);font-size:10px;text-transform:uppercase;border-bottom:1px solid var(--border)">BPO (M)</th>
+          </tr></thead>
+          <tbody>${mv.entries.map(e=>`<tr style="border-bottom:1px solid rgba(22,51,84,.4)">
+            <td style="padding:6px 10px;font-weight:600">${e.branch}</td>
+            <td style="padding:6px 10px;color:var(--txt2);font-size:11px">${e.product||'&#8212;'}</td>
+            <td style="padding:6px 10px"><span class="badge ${e.from.startsWith('STAGE3')?'b-s3':e.from.startsWith('STAGE2')?'b-s2':e.from==='NEW LOAN'?'b-new':'b-s1'}">${e.from}</span></td>
+            <td style="padding:6px 10px"><span class="badge ${e.to.startsWith('STAGE3')?'b-s3':e.to.startsWith('STAGE2')?'b-s2':e.to==='SETTLED'?'b-out':'b-s1'}">${e.to==='SETTLED'?'SETTLED/CONVERTED':e.to}</span></td>
+            <td style="padding:6px 10px;text-align:right;color:var(--txt2)">${e.files>0?e.files.toLocaleString():'&#8212;'}</td>
+            <td style="padding:6px 10px;text-align:right;color:var(--warn);font-weight:600">${fmtM(e.bpo)}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </td></tr>`;
+    mvDetailCache[detId]=mv.entries;
+  });
+  tb.innerHTML=html;
 }
 
+const mvDetailCache={};
+
+function toggleMvDetail(id){
+  const el=document.getElementById(id);
+  const tog=document.getElementById('t'+id);
+  if(!el)return;
+  const open=el.style.display==='table-row';
+  el.style.display=open?'none':'table-row';
+  if(tog)tog.style.transform=open?'none':'rotate(90deg)';
+}
+
+function downloadMvCsv(entries,label){
+  if(!entries||!entries.length)return;
+  const hdr='Branch,Product,From Stage,To Stage,Files,BPO';
+  const rows=entries.map(e=>['"'+e.branch+'"','"'+(e.product||'')+'"','"'+e.from+'"','"'+(e.to==='SETTLED'?'SETTLED/CONVERTED':e.to)+'"',e.files||0,((e.bpo||0)/1000000).toFixed(4)].join(','));
+  const csv=[hdr,...rows].join('\n');
+  const safe=label.replace(/[\u2192\/\\:*?"<>|]/g,'_');
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'Stage_Movement_'+safe+'.csv'});
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+function toggleMv(id){toggleMvDetail(id);}
+
+
+
 // ════════════════════════════════════════════════
-//  STAGE BREAKDOWN TABLE
+//  STAGE BREAKDOWN TABLE  (BPO / Files toggle)
 // ════════════════════════════════════════════════
+let sbMode = 'bpo'; // 'bpo' | 'files'
+
+function setSbMode(mode) {
+  sbMode = mode;
+  document.getElementById('sb-bpo-btn').classList.toggle('active', mode==='bpo');
+  document.getElementById('sb-fc-btn').classList.toggle('active', mode==='files');
+  renderStageBreakdown();
+}
+
 function renderStageBreakdown() {
-  const mo = document.getElementById('sb-mo').value;
+  const mo   = document.getElementById('sb-mo').value;
   const head = document.getElementById('sb-head');
   const tb   = document.getElementById('sb-tbody');
+  const mode = sbMode;
 
   if (!mo) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'Select a month'); return; }
-
   const data = getDataMs(mo, null, 'sb-pr-ms');
   if (!data.length) { head.innerHTML=''; tb.innerHTML = emptyRow(1,'No data for selection'); return; }
 
-  // Collect all unique stages, sorted
   const stageOrder = ['STAGE1A','STAGE1B','STAGE2A','STAGE2B','STAGE3A','STAGE3B','STAGE3C','STAGE3D'];
-  const allStages = [...new Set(data.map(r=>(r['FINAL STAGE']||'').trim().toUpperCase()))]
+  const allStages  = [...new Set(data.map(r=>(r['FINAL STAGE']||'').trim().toUpperCase()))]
     .filter(Boolean)
-    .sort((a,b) => {
-      const ia = stageOrder.indexOf(a), ib = stageOrder.indexOf(b);
-      if (ia>=0 && ib>=0) return ia-ib;
-      if (ia>=0) return -1; if (ib>=0) return 1;
-      return a.localeCompare(b);
-    });
+    .sort((a,b)=>{ const ia=stageOrder.indexOf(a),ib=stageOrder.indexOf(b); if(ia>=0&&ib>=0)return ia-ib; if(ia>=0)return -1; if(ib>=0)return 1; return a.localeCompare(b); });
 
-  // Group by branch → stage → sum TotalPrincipal
+  // Group by branch → stage → {bpo, files}
   const byBranch = {};
   data.forEach(r => {
-    const br = r.BranchName || 'Unknown';
+    const br = r.BranchName||'Unknown';
     const st = (r['FINAL STAGE']||'').trim().toUpperCase();
     if (!byBranch[br]) byBranch[br] = {};
-    byBranch[br][st] = (byBranch[br][st] || 0) + r.TotalPrincipal;
+    if (!byBranch[br][st]) byBranch[br][st] = {bpo:0, files:0};
+    byBranch[br][st].bpo   += r.TotalPrincipal||0;
+    byBranch[br][st].files += r.FileCount||0;
   });
 
   const branches = Object.keys(byBranch).sort();
+  const unit = mode==='bpo' ? 'BPO (M)' : 'Files';
+  const fmt  = mode==='bpo' ? v => v>0 ? fmtM(v)  : '—'
+                             : v => v>0 ? v.toLocaleString() : '—';
+  const get  = (obj, st) => mode==='bpo' ? (obj[st]?.bpo||0) : (obj[st]?.files||0);
+  const getTotal = obj => mode==='bpo'
+    ? Object.values(obj).reduce((s,v)=>s+(v.bpo||0),0)
+    : Object.values(obj).reduce((s,v)=>s+(v.files||0),0);
 
-  // Header
   head.innerHTML = `<tr>
     <th onclick="sortCol(this,'sb-tbody',0)" style="white-space:nowrap">Branch<span class="si"></span></th>
     ${allStages.map((s,i)=>`<th class="num" onclick="sortCol(this,'sb-tbody',${i+1})" style="white-space:nowrap">${s}<span class="si"></span></th>`).join('')}
-    <th class="num" onclick="sortCol(this,'sb-tbody',${allStages.length+1})">Total<span class="si"></span></th>
+    <th class="num" onclick="sortCol(this,'sb-tbody',${allStages.length+1})">Total ${unit}<span class="si"></span></th>
   </tr>`;
 
-  // Stage column totals
-  const stageTotals = {};
-  allStages.forEach(s => stageTotals[s] = 0);
+  const stageTotals = {}; allStages.forEach(s=>stageTotals[s]=0);
   let grandTotal = 0;
 
   const rowsHtml = branches.map(br => {
     const stages = byBranch[br];
-    const total  = Object.values(stages).reduce((s,v)=>s+v,0);
+    const total  = getTotal(stages);
     grandTotal  += total;
     const cells  = allStages.map(s => {
-      const v = stages[s] || 0;
+      const v = get(stages, s);
       stageTotals[s] += v;
-      const stCls = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
-      return `<td class="num" style="${stCls}">${v>0?fmtM(v):'—'}</td>`;
+      const cl = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
+      return `<td class="num" style="${cl}">${fmt(v)}</td>`;
     }).join('');
-    return `<tr>
-      <td style="font-weight:600;white-space:nowrap">${br}</td>
-      ${cells}
-      <td class="num" style="font-weight:700">${fmtM(total)}</td>
-    </tr>`;
+    return `<tr><td style="font-weight:600;white-space:nowrap">${br}</td>${cells}<td class="num" style="font-weight:700">${fmt(total)}</td></tr>`;
   }).join('');
 
-  // Total row
   const totalCells = allStages.map(s => {
     const v = stageTotals[s];
-    const stCls = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
-    return `<td class="num" style="${stCls};font-weight:700">${v>0?fmtM(v):'—'}</td>`;
+    const cl = s.startsWith('STAGE3')?'color:var(--bad)':s.startsWith('STAGE2')?'color:var(--warn)':'color:var(--txt2)';
+    return `<td class="num" style="${cl};font-weight:700">${fmt(v)}</td>`;
   }).join('');
 
-  tb.innerHTML = rowsHtml + `<tr class="total-row">
-    <td>TOTAL</td>${totalCells}
-    <td class="num" style="font-weight:700">${fmtM(grandTotal)}</td>
-  </tr>`;
+  tb.innerHTML = rowsHtml + `<tr class="total-row"><td>TOTAL</td>${totalCells}<td class="num" style="font-weight:700">${fmt(grandTotal)}</td></tr>`;
+}
+
+function exportSbCsv() {
+  const mo = document.getElementById('sb-mo').value||'data';
+  const head = document.getElementById('sb-head');
+  const tb   = document.getElementById('sb-tbody');
+  if (!head||!tb) return;
+  const headers = [...head.querySelectorAll('th')].map(th=>th.textContent.replace(/[▲▼]/g,'').trim());
+  const rows    = [...tb.querySelectorAll('tr')].map(tr=>[...tr.querySelectorAll('td')].map(td=>td.textContent.trim()));
+  const csv     = [headers.join(','), ...rows.map(r=>r.join(','))].join('\n');
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:`Stage_Breakdown_${mo}.csv`});
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 function toggleMv(id, row) {

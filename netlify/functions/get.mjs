@@ -48,6 +48,15 @@ export default async (req) => {
       }, { headers: cors });
     }
 
+    // ── Get compact individual records for one period (stage movement) ──
+    if (action === "records") {
+      const period = url.searchParams.get("period");
+      if (!period)
+        return Response.json({ error: "Missing period" }, { status: 400, headers: cors });
+      const rows = await store.get(`records/${period}`, { type: "json" }).catch(() => null);
+      return Response.json({ rows: rows || [] }, { headers: cors });
+    }
+
     // ── List available report periods ─────────────────────────────
     if (action === "periods") {
       const { blobs } = await store.list({ prefix: "report/" });

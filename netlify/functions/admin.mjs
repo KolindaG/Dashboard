@@ -47,15 +47,17 @@ export default async (req) => {
 
     // ── Upload one period's aggregated rows ───────────────────────
     if (action === "upload-period") {
-      const { period, rows } = body;
+      const { period, rows, records } = body;
       if (!period || !Array.isArray(rows))
         return Response.json({ error: "Missing period or rows" }, { status: 400, headers: cors });
       await store.setJSON(`report/${period}`, rows);
+      if (Array.isArray(records) && records.length)
+        await store.setJSON(`records/${period}`, records);
       await store.setJSON("meta", {
         lastUpload: new Date().toISOString(),
         lastPeriod: period,
       });
-      return Response.json({ ok: true, period, count: rows.length }, { headers: cors });
+      return Response.json({ ok: true, period, count: rows.length, recs: records?.length || 0 }, { headers: cors });
     }
 
     // ── Delete a period ───────────────────────────────────────────
@@ -63,7 +65,10 @@ export default async (req) => {
       const { period } = body;
       if (!period)
         return Response.json({ error: "Missing period" }, { status: 400, headers: cors });
-      await store.delete(`report/${period}`);
+      await Promise.all([
+        store.delete(`report/${period}`),
+        store.delete(`records/${period}`).catch(() => {}),
+      ]);
       return Response.json({ ok: true }, { headers: cors });
     }
 
